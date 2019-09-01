@@ -4,31 +4,32 @@
 
 1. 初始化测试项目
 
-```js
-mkdir testPuppetMacpro
+   ```js
+   mkdir testPuppetMacpro
 
-npm init
-```
+   npm init
+   ```
 
-2. 安装wechaty最新版
+1. 安装wechaty最新版
 
-```js
-npm install wechaty@next
-```
+   ```js
+   npm install wechaty@next
+   ```
 
-3. 安装wechaty-puppet-macpro
+1. 安装wechaty-puppet-macpro
 
-```js
-npm install wechaty-puppet-macpro
-```
+   ```js
+   npm install wechaty-puppet-macpro
+   ```
 
-4. 安装其他依赖环境，例如在终端显示二维码的包
+1. 安装其他依赖环境，例如在终端显示二维码的包
 
-```js
-npm install qrcode-terminal
-```
+   ```js
+   npm install qrcode-terminal
+   ```
 
 ## 示例代码(typescript版本)
+
 ```js
 import {
   Wechaty,
@@ -40,7 +41,7 @@ import QrcodeTerminal from 'qrcode-terminal';
 
 const token = '你的token';
 
-const puppet: any = new PuppetMacpro({
+const puppet = new PuppetMacpro({
   token,
 })
 
