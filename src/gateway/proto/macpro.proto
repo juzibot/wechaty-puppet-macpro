@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package MacproRequestProto;
+
+// 定义请求服务
+service MacproRequest {
+  rpc Request (RequestObject) returns (ResponseObject) {}
+  rpc Notify (RequestObject) returns (stream MessageStream) {} // 请求->响应流 （接收到的聊天消息、各种回调都可以归为此类型）
+}
+
+message RequestObject {
+  string apiName = 1; // 请求的API名称
+  string token = 2; // 请求时所携带的token
+  string data = 3; // 请求中的具体数据
+}
+
+message ResponseObject {
+  string token = 1; // 响应时携带的token
+  string data = 2; // 响应的数据
+}
+
+message MessageStream {
+  string code = 1;
+  string data = 2;
+}
