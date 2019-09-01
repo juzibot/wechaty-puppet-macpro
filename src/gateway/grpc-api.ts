@@ -13,7 +13,7 @@ import { EventEmitter } from 'events'
 
 const PRE = 'GRPC_GATEWAY'
 
-export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-member' | 'room-create' | 'already-login' | 'room-join' | 'room-qrcode'
+export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-member' | 'room-create' | 'already-login' | 'room-join' | 'room-qrcode' | 'reconnect'
 
 export class GrpcGateway extends EventEmitter {
 
@@ -84,6 +84,7 @@ export class GrpcGateway extends EventEmitter {
   public emit (event: 'already-login', data: string): boolean
   public emit (event: 'message', data: string): boolean
   public emit (event: 'logout', data: string): boolean
+  public emit (event: 'reconnect'): boolean
   public emit (event: never, data: string): never
 
   public emit (
@@ -105,6 +106,7 @@ export class GrpcGateway extends EventEmitter {
   public on (event: 'already-login', listener: ((data: string) => any)): this
   public on (event: 'message', listener: ((data: string) => any)): this
   public on (event: 'logout', listener: ((data: string) => any)): this
+  public on (event: 'reconnect', listener: (() => any)): this
   public on (event: never, listener: ((data: string) => any)): never
 
   public on (
@@ -137,6 +139,12 @@ export class GrpcGateway extends EventEmitter {
 
       result.on('error', (err) => {
         log.error(PRE, err.stack)
+      })
+      result.on('end', () => {
+        log.error(PRE, 'grpc server end.')
+      })
+      result.on('close', () => {
+        log.error(PRE, 'grpc server close')
       })
       result.on('data', (data: MessageStream) => {
         log.silly(PRE, `event code :  ${data.getCode()}`)
@@ -182,10 +190,26 @@ export class GrpcGateway extends EventEmitter {
             throw new Error(`can not get the notify`)
         }
       })
-      // TODO: add listener on end or close event to detect connection issue
+      await new Promise((resolve, reject) => {
+        result.once('error', (err) => {
+          log.silly(PRE, 'grpc server error', err)
+          return reject(new Error('ERROR'))
+        })
+        result.once('end', () => {
+          log.silly(PRE, 'grpc server end')
+          return reject(new Error('END'))
+        })
+        result.once('close', () => {
+          log.silly(PRE, 'grpc server close')
+          return reject(new Error('CLOSE'))
+        })
+        result.once('data', (dataStr: string) => {
+          resolve(dataStr)
+        })
+      })
     } catch (err) {
-      // TODO: 错误处理
       log.silly(PRE, `error : ${err}`)
+      this.emit('reconnect')
     }
   }
 

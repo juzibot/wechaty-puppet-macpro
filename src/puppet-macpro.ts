@@ -160,6 +160,11 @@ export class PuppetMacpro extends Puppet {
 
     this.state.on('pending')
 
+    this.grpcGateway.on('reconnect', async () => {
+      await this.stop()
+      await this.start()
+    })
+
     this.grpcGateway.on('scan', async dataStr => {
       log.verbose(PRE, `
       ======================================
@@ -186,10 +191,10 @@ export class PuppetMacpro extends Puppet {
       login data : ${util.inspect(data)}
       ========================================
       `)
-      const userId = data.account
+      const wxid = data.account_alias
 
       log.verbose(PRE, `init cache manager`)
-      await CacheManager.init(userId)
+      await CacheManager.init(wxid)
       this.cacheManager = CacheManager.Instance
 
       const selfPayload: MacproContactPayload = {
@@ -205,7 +210,8 @@ export class PuppetMacpro extends Puppet {
         v1: '',
       }
       await this.cacheManager.setContact(selfPayload.accountAlias, selfPayload)
-      await this.login(userId)
+      await this.cacheManager.setAccountWXID(selfPayload.account, selfPayload.accountAlias)
+      await this.login(wxid)
 
     })
 
@@ -216,13 +222,18 @@ export class PuppetMacpro extends Puppet {
       ===============================================
       `)
       const data = JSON.parse(dataStr)
-      const userId = data.account
-
+      if (!this.cacheManager) {
+        throw CacheManageError('ROOM-MEMBER')
+      }
+      const wxid = await this.cacheManager.getAccountWXID(data.account)
+      if (!wxid) {
+        throw NoIDError('ALREADY-LOGIN')
+      }
       log.verbose(PRE, `init cache manager`)
-      await CacheManager.init(userId)
+      await CacheManager.init(wxid)
       this.cacheManager = CacheManager.Instance
-      log.silly(PRE, `login account : ${userId}`)
-      await this.login(userId)
+      log.silly(PRE, `login account : ${wxid}`)
+      await this.login(wxid)
 
     })
 
@@ -291,11 +302,12 @@ export class PuppetMacpro extends Puppet {
                grpc on not-login
       ======================================
       `)
+      log.silly(PRE, `dataStr : ${util.inspect(dataStr)}`)
       let account = JSON.parse(dataStr).account
       if (!account) {
         await this.user.getWeChatQRCode()
       } else {
-        await this.user.getWeChatQRCode(account)
+        await this.user.getWeChatQRCode() // TODO: need params : account
       }
 
     })
@@ -320,7 +332,7 @@ export class PuppetMacpro extends Puppet {
     })
 
     await this.grpcGateway.notify('getLoginUserInfo', {
-      my_account: null,
+      my_account: '',
     })
 
     this.state.on(true)
@@ -558,9 +570,9 @@ export class PuppetMacpro extends Puppet {
     if (!this.id) {
       throw NoIDError('stop()')
     }
+    await CacheManager.release()
+    this.grpcGateway.removeAllListeners()
     await this.user.logoutWeChat(this.id)
-
-    await this.logout()
   }
 
   public async logout (): Promise<void> {
@@ -573,6 +585,7 @@ export class PuppetMacpro extends Puppet {
 
     this.emit('logout', this.id) // be care we will throw above by logonoff() when this.user===undefined
     this.id = undefined
+    this.state.off(true)
 
   }
 

@@ -9,8 +9,8 @@ class PuppetMacproTest extends PuppetMacpro {
 }
 
 // TODO: fix the test.
-test.skip('PuppetMacpro restart without problem', async (t) => {
-  const puppet = new PuppetMacproTest()
+test('PuppetMacpro restart without problem', async (t) => {
+  const puppet = new PuppetMacproTest({token: 'puppet_macpro_11cb7a1ae653s512'})
   try {
     for (let i = 0; i < 3; i++) {
       await puppet.start()
