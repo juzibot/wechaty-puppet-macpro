@@ -22,6 +22,7 @@ npm init -y
 npm install ./*-*.*.*.tgz \
   @chatie/tsconfig \
   @types/quick-lru \
+  @types/lru-cache \
   @types/normalize-package-data \
   \
   file-box \
