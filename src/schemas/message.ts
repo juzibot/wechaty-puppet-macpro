@@ -12,6 +12,7 @@ export interface GrpcMessagePayload {
   voice_len?: number,
   messageId?: string,
   content_type?: MacproMessageType,
+  send_time: number,
 }
 
 export interface GrpcPrivateMessagePayload extends GrpcMessagePayload {
