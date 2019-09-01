@@ -17,7 +17,7 @@ async function main () {
     throw new Error('version should not be 0.0.0 when prepare for publishing')
   }
 
-  const puppet = new PuppetMacpro()
+  const puppet = new PuppetMacpro({ token: 'test-token' })
   console.log(`Puppet v${puppet.version()} smoke testing passed.`)
   return 0
 }

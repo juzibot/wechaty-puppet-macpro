@@ -25,6 +25,7 @@ npm install ./*-*.*.*.tgz \
   @types/lru-cache \
   @types/normalize-package-data \
   \
+  lru-cache \
   file-box \
   memory-card \
   "wechaty-puppet@$NPM_TAG" \

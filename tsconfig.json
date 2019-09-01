@@ -7,7 +7,6 @@
     "node_modules/",
     "dist/",
     "tests/fixtures/",
-    "src/gateway/"
   ],
   "include": [
     "app/**/*.ts",

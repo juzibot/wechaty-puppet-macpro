@@ -8,7 +8,7 @@ import {
   RequestObject,
   ResponseObject,
   MessageStream,
-} from './proto-ts/MacproGrpc'
+} from './proto-ts/Macpro_pb'
 import { EventEmitter } from 'events'
 
 const PRE = 'GRPC_GATEWAY'

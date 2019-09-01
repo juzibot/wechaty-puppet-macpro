@@ -1,6 +1,6 @@
 {
   "name": "wechaty-puppet-macpro",
-  "version": "0.0.5",
+  "version": "0.1.2",
   "description": "Puppet Macpro for Wechaty",
   "directories": {
     "test": "tests"
