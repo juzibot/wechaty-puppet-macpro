@@ -147,7 +147,7 @@ export class PuppetMacpro extends Puppet {
       this.user = new MacproUser(options.token, this.requestClient)
       this.message = new MacproMessage(this.requestClient)
       this.room = new MacproRoom(this.requestClient)
-      this.apiQueue = new DelayQueueExecutor(100)
+      this.apiQueue = new DelayQueueExecutor(30)
     } else {
       log.error(PRE, `can not get token info from options for start grpc gateway.`)
       throw new Error(`can not get token info.`)
@@ -399,7 +399,7 @@ export class PuppetMacpro extends Puppet {
       ...messagePayload,
       content_type: contentType,
       messageId,
-      timestamp: Date.now(),
+      timestamp: messagePayload.send_time,
     }
 
     // Cache message for future usage
