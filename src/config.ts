@@ -5,6 +5,22 @@ import { OperationOptions } from 'retry'
 import promiseRetry = require('promise-retry')
 export const CHATIE_OFFICIAL_ACCOUNT_QRCODE = 'http://weixin.qq.com/r/qymXj7DEO_1ErfTs93y5'
 
+export const macproToken = () => {
+  const token = process.env.WECHATY_PUPPET_MACPRO_TOKEN as string
+  if (!token) {
+    log.error('PuppetMacproConfig', `
+
+      WECHATY_PUPPET_MACPRO_TOKEN environment variable not found.
+
+      PuppetMacpro need a token before it can be used,
+      Please set WECHATY_PUPPET_MACPRO_TOKEN then retry again.
+
+    `)
+    throw new Error('You need a valid WECHATY_PUPPET_MACPRO_TOKEN to use PuppetMacpro')
+  }
+  return token
+}
+
 /**
  * GRPC server
  */

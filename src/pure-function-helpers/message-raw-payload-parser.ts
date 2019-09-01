@@ -88,7 +88,17 @@ export async function messageRawPayloadParser (
    *
    * 4. Set Text
    */
-  text = rawPayload.content
+  if (rawPayload.g_number) {
+
+    const startIndex = rawPayload.content.indexOf(':\n')
+
+    text = rawPayload.content.slice(startIndex !== -1 ? startIndex + 2 : 0)
+
+  } else {
+
+    text = rawPayload.content
+
+  }
 
   /**
    * 5.1 Validate Room & From ID
