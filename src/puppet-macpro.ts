@@ -54,13 +54,14 @@ import {
 }                           from 'wechaty-puppet'
 
 import {
-  log,
-  qrCodeForChatie,
-  VERSION,
-  MESSAGE_CACHE_MAX,
-  MESSAGE_CACHE_AGE,
   GRPC_ENDPOINT,
+  log,
+  macproToken,
+  MESSAGE_CACHE_AGE,
+  MESSAGE_CACHE_MAX,
+  qrCodeForChatie,
   retry,
+  VERSION,
 }                                   from './config'
 
 import { DelayQueueExecutor } from 'rx-queue'
@@ -140,11 +141,12 @@ export class PuppetMacpro extends Puppet {
 
     this.cacheMacproMessagePayload = new LRU<string, MacproMessagePayload>(lruOptions)
 
-    if (options.token) {
-      this.grpcGateway = new GrpcGateway(options.token, GRPC_ENDPOINT)
+    const token = options.token || macproToken()
+    if (token) {
+      this.grpcGateway = new GrpcGateway(token, GRPC_ENDPOINT)
       this.requestClient = new RequestClient(this.grpcGateway)
       this.contact = new MacproContact(this.requestClient)
-      this.user = new MacproUser(options.token, this.requestClient)
+      this.user = new MacproUser(token, this.requestClient)
       this.message = new MacproMessage(this.requestClient)
       this.room = new MacproRoom(this.requestClient)
       this.apiQueue = new DelayQueueExecutor(100)
