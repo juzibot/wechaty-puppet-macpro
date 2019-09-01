@@ -8,7 +8,7 @@
 // tslint:disable:no-console
 
 import {
-  PupperMacpro,
+  PuppetMacpro,
   VERSION,
 }                 from 'wechaty-puppet-macpro'
 
@@ -17,7 +17,7 @@ async function main () {
     throw new Error('version should not be 0.0.0 when prepare for publishing')
   }
 
-  const puppet = new PupperMacpro()
+  const puppet = new PuppetMacpro()
   console.log(`Puppet v${puppet.version()} smoke testing passed.`)
   return 0
 }
