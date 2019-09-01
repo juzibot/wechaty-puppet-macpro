@@ -1,8 +1,8 @@
 # WECHATY-PUPPET-MACPRO
 
-## Puppet-Macpro安装流程
+## Install
 
-1. 初始化测试项目
+1. Init
 
    ```js
    mkdir testPuppetMacpro
@@ -10,25 +10,25 @@
    npm init
    ```
 
-1. 安装wechaty最新版
+1. Install the latest wechaty
 
    ```js
    npm install wechaty@next
    ```
 
-1. 安装wechaty-puppet-macpro
+1. Install wechaty-puppet-macpro
 
    ```js
    npm install wechaty-puppet-macpro
    ```
 
-1. 安装其他依赖环境，例如在终端显示二维码的包
+1. Install other dependency
 
    ```js
    npm install qrcode-terminal
    ```
 
-## 示例代码(typescript版本)
+## Example
 
 ```js
 import {
@@ -39,7 +39,7 @@ import {
 } from 'wechaty-puppet-macpro';
 import QrcodeTerminal from 'qrcode-terminal';
 
-const token = '你的token';
+const token = 'your token';
 
 const puppet = new PuppetMacpro({
   token,
