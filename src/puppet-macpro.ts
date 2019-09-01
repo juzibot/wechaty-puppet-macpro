@@ -1140,7 +1140,13 @@ export class PuppetMacpro extends Puppet {
       MacproMessageType.Voice,
     ]
     if (supportedMessageTypeToFileBox.includes(messageType)) {
-      return FileBox.fromUrl(messagePayload.content)
+      const fileBox = FileBox.fromUrl(messagePayload.content)
+      if (messageType === MacproMessageType.Voice) {
+        fileBox.metadata = {
+          voiceLength: messagePayload.voice_len,
+        }
+      }
+      return fileBox
     } else {
       throw new Error(`Can not get filebox for message type: ${MacproMessageType[messageType]}`)
     }
