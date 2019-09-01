@@ -224,10 +224,7 @@ export class PuppetMacpro extends Puppet {
       ===============================================
       `)
       const data = JSON.parse(dataStr)
-      if (!this.cacheManager) {
-        throw CacheManageError('ROOM-MEMBER')
-      }
-      const wxid = await this.cacheManager.getAccountWXID(data.account)
+      const wxid = data.account_alias
       if (!wxid) {
         throw NoIDError('ALREADY-LOGIN')
       }
