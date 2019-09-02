@@ -17,8 +17,8 @@ export default class MacproMessage {
     log.verbose(PRE, `sendMessage()`)
 
     const data = {
-      content_type: messageType,
       content: message,
+      content_type: messageType,
       file_name: fileName,
       my_account: contactId,
       to_account: contactIdOrRoomId,
