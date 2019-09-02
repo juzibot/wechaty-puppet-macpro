@@ -13,7 +13,7 @@ export default class MacproMessage {
   }
 
   // Send message (text, image, url, video, file, gif)
-  public sendMessage = async (contactId: string, contactIdOrRoomId: string, message: string, messageType: MacproMessageType): Promise<RequestStatus> => {
+  public sendMessage = async (contactId: string, contactIdOrRoomId: string, message: string, messageType: MacproMessageType, fileName?: string): Promise<RequestStatus> => {
     log.verbose(PRE, `sendMessage()`)
 
     const data = {
@@ -21,6 +21,7 @@ export default class MacproMessage {
       content_type: messageType,
       my_account: contactId,
       to_account: contactIdOrRoomId,
+      file_name: fileName
     }
 
     const res = await this.requestClient.request({

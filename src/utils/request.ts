@@ -26,6 +26,7 @@ export class RequestClient {
   }
 
   public async uploadFile (filename: string, stream: NodeJS.ReadableStream) {
+    log.silly(PRE, `stream length : ${stream}`)
     let option: AWS.S3.PutObjectRequest = {
       ACL: 'public-read',
       Body: stream,
@@ -51,7 +52,9 @@ export class RequestClient {
         }
       })
     })
-    return result.Location
+    const location = result.Location
+    const _location = location.split('image-message')[0] + option.Key
+    return _location
   }
 
 }

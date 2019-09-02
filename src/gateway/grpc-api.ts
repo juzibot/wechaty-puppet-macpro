@@ -13,7 +13,7 @@ import { EventEmitter } from 'events'
 
 const PRE = 'GRPC_GATEWAY'
 
-export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-member' | 'room-create' | 'already-login' | 'room-join' | 'room-qrcode' | 'reconnect'
+export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-member' | 'room-create' | 'room-join' | 'room-qrcode' | 'reconnect'
 
 export class GrpcGateway extends EventEmitter {
 
@@ -47,8 +47,7 @@ export class GrpcGateway extends EventEmitter {
       if (JSON.stringify(data.code) === '1') {
         return data.data || data
       } else {
-        log.silly(PRE, `data : ${util.inspect(data)}`)
-        throw new Error(`can not get the right result`)
+        log.silly(PRE, `error data : ${util.inspect(data)}`)
       }
     } catch (err) {
       // TODO: 错误处理
@@ -81,7 +80,6 @@ export class GrpcGateway extends EventEmitter {
   public emit (event: 'room-qrcode', data: string): boolean
   public emit (event: 'scan', data: string): boolean
   public emit (event: 'login', data: string): boolean
-  public emit (event: 'already-login', data: string): boolean
   public emit (event: 'message', data: string): boolean
   public emit (event: 'logout', data: string): boolean
   public emit (event: 'reconnect'): boolean
@@ -103,7 +101,6 @@ export class GrpcGateway extends EventEmitter {
   public on (event: 'room-qrcode', listener: ((data: string) => any)): this
   public on (event: 'scan', listener: ((data: string) => any)): this
   public on (event: 'login', listener: ((data: string) => any)): this
-  public on (event: 'already-login', listener: ((data: string) => any)): this
   public on (event: 'message', listener: ((data: string) => any)): this
   public on (event: 'logout', listener: ((data: string) => any)): this
   public on (event: 'reconnect', listener: (() => any)): this
@@ -178,9 +175,6 @@ export class GrpcGateway extends EventEmitter {
             break
           case 'logout' :
             this.emit('logout', data.getData())
-            break
-          case 'already-login' :
-            this.emit('already-login', data.getData())
             break
           case 'new-friend':
             this.emit('new-friend', data.getData())

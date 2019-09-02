@@ -9,8 +9,8 @@ import {
   FileCache,
   MacproContactPayload,
   MacproRoomPayload,
-  GrpcRoomMemberPayload,
   MacproRoomInvitationPayload,
+  MacproRoomMemberPayload,
 } from './schemas'
 import { FriendshipPayload } from 'wechaty-puppet'
 
@@ -60,7 +60,7 @@ export class CacheManager {
   private cacheWXID?    : FlashStore<string, string>
   private cacheContactRawPayload?    : FlashStore<string, MacproContactPayload>
   private cacheRoomMemberRawPayload? : FlashStore<string, {
-    [contactId: string]: GrpcRoomMemberPayload,
+    [contactId: string]: MacproRoomMemberPayload,
   }>
   private cacheRoomRawPayload?       : FlashStore<string, MacproRoomPayload>
   private cacheRoomInvitationRawPayload? : FlashStore<string, MacproRoomInvitationPayload>
@@ -224,7 +224,7 @@ export class CacheManager {
    */
   public async getRoomMember (
     roomId: string,
-  ): Promise<{ [contactId: string]: GrpcRoomMemberPayload } | undefined> {
+  ): Promise<{ [contactId: string]: MacproRoomMemberPayload } | undefined> {
     if (!this.cacheRoomMemberRawPayload) {
       throw new Error(`${PRE} getRoomMember() has no cache.`)
     }
@@ -233,7 +233,7 @@ export class CacheManager {
 
   public async setRoomMember (
     roomId: string,
-    payload: { [contactId: string]: GrpcRoomMemberPayload }
+    payload: { [contactId: string]: MacproRoomMemberPayload }
   ): Promise<void> {
     if (!this.cacheRoomMemberRawPayload) {
       throw new Error(`${PRE} setRoomMember() has no cache.`)

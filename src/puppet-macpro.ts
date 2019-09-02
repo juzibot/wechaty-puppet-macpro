@@ -85,7 +85,7 @@ import { GrpcGateway } from './gateway/grpc-api'
 import MacproContact from './mac-api/contact'
 import MacproUser from './mac-api/user'
 import MacproMessage from './mac-api/message'
-import { MacproRoomPayload, GrpcRoomMemberPayload, MacproRoomInvitationPayload, GrpcRoomPayload, MacproCreateRoom, GrpcRoomQrcode } from './schemas/room'
+import { MacproRoomPayload, GrpcRoomMemberPayload, MacproRoomInvitationPayload, GrpcRoomPayload, MacproCreateRoom, GrpcRoomQrcode, GrpcRoomDetailInfo, GrpcRoomMember, MacproRoomMemberPayload } from './schemas/room'
 import MacproRoom from './mac-api/room'
 import {
   fileBoxToQrcode,
@@ -217,25 +217,6 @@ export class PuppetMacpro extends Puppet {
 
     })
 
-    this.grpcGateway.on('already-login', async dataStr => {
-      log.verbose(PRE, `
-      ===============================================
-      ALREADY     LOGIN     WELCOME     BACK
-      ===============================================
-      `)
-      const data = JSON.parse(dataStr)
-      const wxid = data.account_alias
-      if (!wxid) {
-        throw NoIDError('ALREADY-LOGIN')
-      }
-      log.verbose(PRE, `init cache manager`)
-      await CacheManager.init(wxid)
-      this.cacheManager = CacheManager.Instance
-      log.silly(PRE, `login account : ${wxid}`)
-      await this.login(wxid)
-
-    })
-
     this.grpcGateway.on('message', data => this.onProcessMessage(JSON.parse(data)))
 
     this.grpcGateway.on('contact-list', data => this.setContactToCache(data))
@@ -243,19 +224,15 @@ export class PuppetMacpro extends Puppet {
     this.grpcGateway.on('room-member', async memberStr => {
 
       const members: GrpcRoomMemberPayload[] = JSON.parse(memberStr).memberList
+      const macproMembers: MacproRoomMemberPayload[] = []
       log.verbose(PRE, `room ID : ${members[0].number} has ${members.length} members.`)
-      let payload: { [contactId: string]: GrpcRoomMemberPayload } = {}
+      let payload: { [contactId: string]: MacproRoomMemberPayload } = {}
+      log.silly(PRE, `members[0] : ${util.inspect(members[0])}`)
       members.map(async member => {
-        payload[member.userName] = member
-        if (!this.cacheManager) {
-          throw CacheManageError('ROOM-MEMBER')
-        }
-
-        const _contact = await this.cacheManager.getContact(member.userName)
-        if (!_contact) {
-          const contact: MacproContactPayload = {
-            account: '',
-            accountAlias: member.userName,
+        if (member.userName) {
+          const roomMemberPayload: MacproRoomMemberPayload = {
+            account: member.userName,
+            accountAlias: '',
             area: '',
             description: '',
             disturb: '',
@@ -265,10 +242,34 @@ export class PuppetMacpro extends Puppet {
             thumb: member.bigHeadImgUrl,
             v1: '',
           }
-          await this.cacheManager.setContact(member.userName, contact)
-          await this.cacheManager.setAccountWXID(member.userName, '')
+          macproMembers.push(roomMemberPayload)
+          payload[member.userName] = roomMemberPayload
+          if (!this.cacheManager) {
+            throw CacheManageError('ROOM-MEMBER')
+          }
+
+          const _contact = await this.cacheManager.getContact(member.userName)
+          if (!_contact) {
+            const contact: MacproContactPayload = {
+              account: '',
+              accountAlias: member.userName,
+              area: '',
+              description: '',
+              disturb: '',
+              formName: member.displayName,
+              name: member.nickName,
+              sex: ContactGender.Unknown,
+              thumb: member.bigHeadImgUrl,
+              v1: '',
+            }
+            await this.cacheManager.setContact(member.userName, contact)
+            await this.cacheManager.setAccountWXID(member.userName, '')
+          }
+          await this.cacheManager.setRoomMember(member.number, payload)
+
+        } else {
+          log.silly(PRE, `can not get member user name`)
         }
-        await this.cacheManager.setRoomMember(member.number, payload)
       })
 
       const roomId = members[0].number
@@ -279,7 +280,7 @@ export class PuppetMacpro extends Puppet {
       if (!room) {
         throw new Error(`can not find room info by room id: ${roomId}`)
       }
-      room.members = members
+      room.members = macproMembers
 
       await this.cacheManager.setRoom(room.number, room)
 
@@ -386,7 +387,6 @@ export class PuppetMacpro extends Puppet {
 
         await this.room.roomMember(this.id, r.number)
       })
-
     })
   }
 
@@ -713,7 +713,7 @@ export class PuppetMacpro extends Puppet {
       }
     }
 
-    log.silly(PRE, `rawPayload : ${util.inspect(rawPayload)}`)
+    log.silly(PRE, `contact rawPayload : ${util.inspect(rawPayload)}`)
     if (!rawPayload) {
       rawPayload = await this.contact.getContactInfo(this.id, id)
       log.silly(PRE, `rawPayload from API : ${util.inspect(rawPayload)}`)
@@ -822,7 +822,7 @@ export class PuppetMacpro extends Puppet {
         await this.message.sendMessage(this.id, contactIdOrRoomId!, fileUrl, MacproMessageType.Video)
         break
       default:
-        await this.message.sendMessage(this.id, contactIdOrRoomId!, fileUrl, MacproMessageType.File)
+        await this.message.sendMessage(this.id, contactIdOrRoomId!, fileUrl, MacproMessageType.File, file.name)
         break
     }
 
@@ -1193,13 +1193,53 @@ export class PuppetMacpro extends Puppet {
       throw CacheManageError('roomRawPayload()')
     }
 
-    const rawPayload = await this.cacheManager.getRoom(id)
+    let rawPayload = await this.cacheManager.getRoom(id)
 
-    if (rawPayload === undefined) {
-      throw new Error(`can not get room payload by room id: ${id}`)
+    if (!rawPayload) {
+      if (!this.id) {
+        throw NoIDError(`roomRawPayload()`)
+      }
+      const roomDetail = await this.room.roomDetailInfo(this.id, id)
+      if (roomDetail) {
+        rawPayload = await this.roomInfoConvert(roomDetail)
+      } else {
+        throw new Error(`no payload`)
+      }
     }
 
     return rawPayload
+  }
+
+  private async roomInfoConvert (roomDetail: GrpcRoomDetailInfo): Promise<MacproRoomPayload> {
+    log.silly(PRE, `roomInfoConvert() room detail : ${util.inspect(roomDetail)}`)
+
+    const _members: GrpcRoomMember[] = roomDetail.data
+    const members: MacproRoomMemberPayload[] = []
+    _members.map(m => {
+      const member: MacproRoomMemberPayload = {
+        accountAlias: m.account_alias,
+        account: m.account,
+        area: m.area,
+        description: m.description,
+        disturb: '',
+        formName: m.my_name,
+        name: m.name,
+        sex: m.sex as ContactGender,
+        thumb: m.thumb,
+        v1: '',
+      }
+      members.push(member)
+    })
+    const roomPayload: MacproRoomPayload = {
+      name: roomDetail.name,
+      number: roomDetail.number,
+      thumb: roomDetail.thumb,
+      disturb: roomDetail.disturb,
+      members,
+      owner: roomDetail.author,
+    }
+    // TODO: convert data from grpc to macpro
+    return roomPayload
   }
 
   public async roomRawPayloadParser (
@@ -1210,7 +1250,7 @@ export class PuppetMacpro extends Puppet {
     const payload: RoomPayload = {
       avatar: rawPayload.thumb,
       id : rawPayload.number,
-      memberIdList : rawPayload.members.map(m => m.userName) || [],
+      memberIdList : rawPayload.members.map(m => m.account) || [],
       ownerId: rawPayload.owner,
       topic: rawPayload.name,
     }
@@ -1406,7 +1446,7 @@ export class PuppetMacpro extends Puppet {
     return Object.keys(roomMemberListPayload)
   }
 
-  public async roomMemberRawPayload (roomId: string, contactId: string): Promise<GrpcRoomMemberPayload>  {
+  public async roomMemberRawPayload (roomId: string, contactId: string): Promise<MacproRoomMemberPayload>  {
     log.verbose(PRE, 'roomMemberRawPayload(%s, %s)', roomId, contactId)
 
     if (!this.cacheManager) {

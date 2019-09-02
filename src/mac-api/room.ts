@@ -1,5 +1,5 @@
 import { log } from '../config'
-import { GrpcRoomPayload, RequestStatus } from '../schemas'
+import { GrpcRoomPayload, RequestStatus, GrpcRoomDetailInfo } from '../schemas'
 import { RequestClient } from '../utils/request'
 
 const PRE = 'MacproRoom'
@@ -70,6 +70,22 @@ export default class MacproRoom {
     } else {
       return RequestStatus.Fail
     }
+  }
+
+  // 获取微信群详细信息 TODO: 需要核实返回的字段及类型
+  public roomDetailInfo = async (loginId: string, roomId: string): Promise<GrpcRoomDetailInfo> => {
+    log.verbose(PRE, `roomDetailInfo(${loginId}, ${roomId})`)
+
+    const data = {
+      my_account: loginId,
+      g_number: roomId,
+    }
+
+    const res: GrpcRoomDetailInfo = await this.requestClient.request({
+      apiName: 'getRoomDetailInfo',
+      data,
+    })
+    return res
   }
 
   public createRoom = async (loginId: string, contactIdList: string[]): Promise<RequestStatus> => {
