@@ -178,7 +178,7 @@ export class PuppetMacpro extends Puppet {
 
       const fileBox = FileBox.fromUrl(data.url)
       const url = await fileBoxToQrcode(fileBox)
-      this.emit('scan', url, ScanStatus.Waiting)
+      this.emit('scan', url, ScanStatus.Cancel)
     })
 
     this.grpcGateway.on('login', async dataStr => {
