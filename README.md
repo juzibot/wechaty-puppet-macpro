@@ -2,42 +2,40 @@
 
 ## Install
 
-1. Init
+### 1. Init
 
-   ```js
-   mkdir testPuppetMacpro
+```js
+mkdir testPuppetMacpro
 
-   npm init
-   ```
+npm init
+```
 
-1. Install the latest wechaty
+### 2. Install the latest wechaty
 
-   ```js
-   npm install wechaty@next
-   ```
+```js
+npm install wechaty
+```
 
-1. Install wechaty-puppet-macpro
+### 3. Install wechaty-puppet-macpro
 
-   ```js
-   npm install wechaty-puppet-macpro
-   ```
+> Notice: wechaty-puppet-macpro still in alpha test period, so we keep updating the package, you should install the latest packge by using `@next` until we release the stable package.
 
-1. Install other dependency
+```js
+npm install wechaty-puppet-macpro@next
+```
 
-   ```js
-   npm install qrcode-terminal
-   ```
+### 4. Install other dependency
+
+```js
+npm install qrcode-terminal
+```
 
 ## Example
 
 ```js
-import {
-  Wechaty,
-} from 'wechaty';
-import {
-  PuppetMacpro
-} from 'wechaty-puppet-macpro';
-import QrcodeTerminal from 'qrcode-terminal';
+import { Wechaty      } from 'wechaty';
+import { PuppetMacpro } from 'wechaty-puppet-macpro';
+import { generate     } from 'qrcode-terminal';
 
 const token = 'your token';
 
@@ -51,11 +49,11 @@ const bot = new Wechaty({
 
 bot
   .on('scan', (qrcode) => {
-    QrcodeTerminal.generate(qrcode, {
+    generate(qrcode, {
       small: true
     });
   })
-  .on('message', async msg => {
+  .on('message', msg => {
     console.log(`msg : ${msg}`)
   })
   .start()
