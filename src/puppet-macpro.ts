@@ -1217,8 +1217,8 @@ export class PuppetMacpro extends Puppet {
     const members: MacproRoomMemberPayload[] = []
     _members.map(m => {
       const member: MacproRoomMemberPayload = {
-        accountAlias: m.account_alias,
         account: m.account,
+        accountAlias: m.account_alias,
         area: m.area,
         description: m.description,
         disturb: '',
@@ -1231,12 +1231,12 @@ export class PuppetMacpro extends Puppet {
       members.push(member)
     })
     const roomPayload: MacproRoomPayload = {
-      name: roomDetail.name,
-      number: roomDetail.number,
-      thumb: roomDetail.thumb,
       disturb: roomDetail.disturb,
       members,
+      name: roomDetail.name,
+      number: roomDetail.number,
       owner: roomDetail.author,
+      thumb: roomDetail.thumb,
     }
     // TODO: convert data from grpc to macpro
     return roomPayload

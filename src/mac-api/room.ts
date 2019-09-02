@@ -77,8 +77,8 @@ export default class MacproRoom {
     log.verbose(PRE, `roomDetailInfo(${loginId}, ${roomId})`)
 
     const data = {
-      my_account: loginId,
       g_number: roomId,
+      my_account: loginId,
     }
 
     const res: GrpcRoomDetailInfo = await this.requestClient.request({

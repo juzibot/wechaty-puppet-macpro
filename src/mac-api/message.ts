@@ -17,11 +17,11 @@ export default class MacproMessage {
     log.verbose(PRE, `sendMessage()`)
 
     const data = {
-      content: message,
       content_type: messageType,
+      content: message,
+      file_name: fileName,
       my_account: contactId,
       to_account: contactIdOrRoomId,
-      file_name: fileName
     }
 
     const res = await this.requestClient.request({

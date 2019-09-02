@@ -1,6 +1,6 @@
-import { ContactGender } from "wechaty-puppet/dist/src/schemas/contact";
-
 /* eslint camelcase: 0 */
+
+import { ContactGender } from 'wechaty-puppet/dist/src/schemas/contact'
 
 export interface GrpcRoomPayload {
   number: string,
