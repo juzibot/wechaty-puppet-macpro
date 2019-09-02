@@ -19,7 +19,7 @@
 1. Install wechaty-puppet-macpro
 
    ```js
-   npm install wechaty-puppet-macpro
+   npm install wechaty-puppet-macpro@next
    ```
 
 1. Install other dependency
