@@ -13,7 +13,7 @@
 1. Install the latest wechaty
 
    ```js
-   npm install wechaty@next
+   npm install wechaty
    ```
 
 1. Install wechaty-puppet-macpro
