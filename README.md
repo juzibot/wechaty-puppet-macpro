@@ -4,31 +4,31 @@
 
 1. Init
 
-   ```js
-   mkdir testPuppetMacpro
+```js
+mkdir testPuppetMacpro
 
-   npm init
-   ```
+npm init
+```
 
 1. Install the latest wechaty
 
-   ```js
-   npm install wechaty
-   ```
+```js
+npm install wechaty
+```
 
 1. Install wechaty-puppet-macpro
 
 > Notice: wechaty-puppet-macpro still in alpha test period, so we keep updating the package, you should install the latest packge by using `@next` until we release the stable package.
 
-   ```js
-   npm install wechaty-puppet-macpro@next
-   ```
+```js
+npm install wechaty-puppet-macpro@next
+```
 
 1. Install other dependency
 
-   ```js
-   npm install qrcode-terminal
-   ```
+```js
+npm install qrcode-terminal
+```
 
 ## Example
 
