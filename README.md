@@ -55,7 +55,7 @@ bot
       small: true
     });
   })
-  .on('message', async msg => {
+  .on('message', msg => {
     console.log(`msg : ${msg}`)
   })
   .start()
