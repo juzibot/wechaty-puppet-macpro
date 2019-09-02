@@ -108,7 +108,7 @@ export class CacheManager {
     contactId: string,
     payload: MacproContactPayload
   ): Promise<void> {
-    if (!this.cacheContactRawPayload) {
+    if (!this.cacheContactRawPayload || !contactId) {
       throw new Error(`${PRE} setContact() has no cache.`)
     }
     await this.cacheContactRawPayload.set(contactId, payload)

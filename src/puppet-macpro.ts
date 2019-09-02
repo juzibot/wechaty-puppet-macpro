@@ -225,9 +225,7 @@ export class PuppetMacpro extends Puppet {
 
       const members: GrpcRoomMemberPayload[] = JSON.parse(memberStr).memberList
       const macproMembers: MacproRoomMemberPayload[] = []
-      log.verbose(PRE, `room ID : ${members[0].number} has ${members.length} members.`)
       let payload: { [contactId: string]: MacproRoomMemberPayload } = {}
-      log.silly(PRE, `members[0] : ${util.inspect(members[0])}`)
       members.map(async member => {
         if (member.userName) {
           const roomMemberPayload: MacproRoomMemberPayload = {
@@ -371,7 +369,11 @@ export class PuppetMacpro extends Puppet {
         }
 
         const res = await this.room.roomOwner(this.id, r.number)
-
+        if (!res || !res.author) {
+          throw new Error(`can not get author for this room : ${r.number}
+          res : ${res}
+          `)
+        }
         const room: MacproRoomPayload = {
           disturb: r.disturb,
           members: [],
@@ -732,10 +734,19 @@ export class PuppetMacpro extends Puppet {
     }
     if (rawPayload.accountAlias) {
       await this.cacheManager.setContact(rawPayload.accountAlias, rawPayload)
-      await this.cacheManager.setAccountWXID(rawPayload.account, rawPayload.accountAlias)
-    } else {
+      if (rawPayload.account) {
+        await this.cacheManager.setAccountWXID(rawPayload.account, rawPayload.accountAlias)
+      }
+    } else if (rawPayload.account) {
       await this.cacheManager.setContact(rawPayload.account, rawPayload)
       await this.cacheManager.setAccountWXID(rawPayload.account, '')
+    } else {
+      log.silly(PRE, `
+      ============================================================
+      bad raw payload : ${util.inspect(rawPayload)}
+      ============================================================
+      `)
+      throw new Error(`bad raw payload`)
     }
   }
 
