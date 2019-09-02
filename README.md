@@ -33,13 +33,9 @@ npm install qrcode-terminal
 ## Example
 
 ```js
-import {
-  Wechaty,
-} from 'wechaty';
-import {
-  PuppetMacpro
-} from 'wechaty-puppet-macpro';
-import { generate } from 'qrcode-terminal';
+import { Wechaty      } from 'wechaty';
+import { PuppetMacpro } from 'wechaty-puppet-macpro';
+import { generate     } from 'qrcode-terminal';
 
 const token = 'your token';
 
