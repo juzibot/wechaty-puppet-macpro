@@ -39,7 +39,7 @@ import {
 import {
   PuppetMacpro
 } from 'wechaty-puppet-macpro';
-import QrcodeTerminal from 'qrcode-terminal';
+import { generate } from 'qrcode-terminal';
 
 const token = 'your token';
 
@@ -53,7 +53,7 @@ const bot = new Wechaty({
 
 bot
   .on('scan', (qrcode) => {
-    QrcodeTerminal.generate(qrcode, {
+    generate(qrcode, {
       small: true
     });
   })
