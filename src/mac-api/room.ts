@@ -94,6 +94,7 @@ export default class MacproRoom {
       account: contactIdList.toString(),
       group_number: topic,
       my_account: loginId,
+      extend: loginId,
     }
 
     const res = await this.requestClient.request({

@@ -18,3 +18,22 @@ export interface GrpcFriendshipRawPayload {
   sourceAccount: string,
   sourceGroupNumber: string,
 }
+
+export interface Friend {
+  name: string,
+  v1: string,
+  account: string,
+  sex: string,
+  area: string,
+  thumb: string,
+}
+
+export interface AddFriend {
+  my_account: string,
+  my_name: string,
+  to_account: string,
+  to_name: string,
+  type: number,
+  time: number,
+  data: Friend,
+}

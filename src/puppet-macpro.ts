@@ -75,6 +75,7 @@ import {
   GrpcPublicMessagePayload,
   GrpcLoginInfo,
   MacproMessagePayload,
+  AddFriend,
 } from './schemas'
 
 import { RequestClient } from './utils/request'
@@ -126,6 +127,8 @@ export class PuppetMacpro extends Puppet {
   private room: MacproRoom
 
   private apiQueue: DelayQueueExecutor
+
+  private addFriendCB: {[id: string]: any} = {}
 
   constructor (
     public options: PuppetOptions = {},
@@ -311,8 +314,8 @@ export class PuppetMacpro extends Puppet {
 
     })
 
-    this.grpcGateway.on('new-friend', async (data: string) => {
-      const friendshipRawPayload: GrpcFriendshipRawPayload = JSON.parse(data)
+    this.grpcGateway.on('new-friend', async (dataStr: string) => {
+      const friendshipRawPayload: GrpcFriendshipRawPayload = JSON.parse(dataStr)
       log.silly(PRE, `
       ===============================
       friendship raw payload: ${JSON.stringify(friendshipRawPayload)}
@@ -327,6 +330,15 @@ export class PuppetMacpro extends Puppet {
       if (payload) {
         await this.cacheManager.setFriendshipRawPayload(id, payload)
         this.emit('friendship', id)
+      }
+    })
+
+    this.grpcGateway.on('add-friend', (dataStr: string) => {
+      const addFriend: AddFriend = JSON.parse(dataStr)
+      const callId = `${this.id}_${addFriend.to_account}`
+      const cb = this.addFriendCB[callId]
+      if (cb) {
+        cb(addFriend)
       }
     })
 
@@ -371,14 +383,17 @@ export class PuppetMacpro extends Puppet {
 
         const res = await this.room.roomOwner(this.id, r.number)
         if (!res || !res.author) {
-          throw new Error(`can not get author for this room : ${r.number}`)
+          log.silly(PRE, `
+          can not get author from API get owner: ${res}
+          `)
+          await this.room.roomOwner(this.id, r.number)
         }
         const room: MacproRoomPayload = {
           disturb: r.disturb,
           members: [],
           name: r.name,
           number: r.number,
-          owner: res.author,
+          owner: res.author || '',
           thumb: r.thumb,
         }
         if (!this.cacheManager) {
@@ -386,7 +401,10 @@ export class PuppetMacpro extends Puppet {
         }
         await this.cacheManager.setRoom(r.number, room)
 
-        await this.room.roomMember(this.id, r.number)
+        const result = await this.room.roomMember(this.id, r.number)
+        if (result === RequestStatus.Fail) {
+          await this.room.roomMember(this.id, r.number)
+        }
       })
     })
   }
@@ -1433,10 +1451,10 @@ export class PuppetMacpro extends Puppet {
         throw CacheManageError('roomCreate()')
       }
 
-      if (roomCreate && roomCreate.group_number) {
-        await this.cacheManager.setRoom(roomCreate.group_number, roomPayload)
+      if (roomCreate && roomCreate.account) {
+        await this.cacheManager.setRoom(roomCreate.account, roomPayload)
       }
-      const roomId = roomCreate.group_number
+      const roomId = roomCreate.account
 
       return roomId
     })
@@ -1466,10 +1484,10 @@ export class PuppetMacpro extends Puppet {
     const roomPayload: MacproRoomPayload = {
       disturb: 1,
       members,
-      name: room.group_nickname,
-      number: room.group_number,
-      owner: room.owner,
-      thumb: room.headimg,
+      name: room.name,
+      number: room.account,
+      owner: '',
+      thumb: room.headerImage,
     }
     return roomPayload
   }
@@ -1644,6 +1662,12 @@ export class PuppetMacpro extends Puppet {
     } else {
       await this.user.addFriend(this.id, contactId, hello)
     }
+    await new Promise<AddFriend>(async (resolve) => {
+      const callId = `${this.id}_${contactId}`
+      this.addFriendCB[callId] = (data: any) => {
+        resolve(data)
+      }
+    })
   }
 
   public async friendshipAccept (

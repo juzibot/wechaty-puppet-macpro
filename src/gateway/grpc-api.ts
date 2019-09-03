@@ -13,7 +13,7 @@ import { EventEmitter } from 'events'
 
 const PRE = 'GRPC_GATEWAY'
 
-export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-member' | 'room-create' | 'room-join' | 'room-qrcode' | 'reconnect' | 'invalid-token'
+export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-member' | 'room-create' | 'room-join' | 'room-qrcode' | 'reconnect' | 'invalid-token' | 'add-friend'
 
 export class GrpcGateway extends EventEmitter {
 
@@ -77,6 +77,7 @@ export class GrpcGateway extends EventEmitter {
   public emit (event: 'not-login', data: string): boolean
   public emit (event: 'contact-list', data: string): boolean
   public emit (event: 'new-friend', data: string): boolean
+  public emit (event: 'add-friend', data: string): boolean
   public emit (event: 'room-member', data: string): boolean
   public emit (event: 'room-create', data: string): boolean
   public emit (event: 'room-join', data: string): boolean
@@ -98,6 +99,7 @@ export class GrpcGateway extends EventEmitter {
   public on (event: 'not-login', listener: ((data: string) => any)): this
   public on (event: 'contact-list', listener: ((data: string) => any)): this
   public on (event: 'new-friend', listener: ((data: string) => any)): this
+  public on (event: 'add-friend', listener: ((data: string) => any)): this
   public on (event: 'room-member', listener: ((data: string) => any)): this
   public on (event: 'room-create', listener: ((data: string) => any)): this
   public on (event: 'room-join', listener: ((data: string) => any)): this
@@ -181,6 +183,9 @@ export class GrpcGateway extends EventEmitter {
             break
           case 'logout' :
             this.emit('logout', data.getData())
+            break
+          case 'add-friend':
+            this.emit('add-friend', data.getData())
             break
           case 'new-friend':
             this.emit('new-friend', data.getData())
