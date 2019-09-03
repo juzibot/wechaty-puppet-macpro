@@ -340,8 +340,7 @@ export class PuppetMacpro extends Puppet {
 
     this.grpcGateway.on('add-friend', (dataStr: string) => {
       const addFriend: AddFriend = JSON.parse(dataStr)
-      const callId = `${this.id}_${addFriend.to_account}`
-      const cb = this.addFriendCB[callId]
+      const cb = this.addFriendCB[addFriend.extend]
       if (cb) {
         cb(addFriend)
       }
@@ -1660,6 +1659,13 @@ export class PuppetMacpro extends Puppet {
   ): Promise<void> {
     log.verbose(PRE, 'friendshipAdd(%s, %s)', contactId, hello)
 
+    await this._friendshipAdd(contactId, hello)
+  }
+
+  private async _friendshipAdd (
+    contactId: string,
+    hello: string,
+  ) {
     if (!this.id) {
       throw NoIDError('friendshipAdd()')
     }
@@ -1667,18 +1673,19 @@ export class PuppetMacpro extends Puppet {
       throw CacheManageError('friendshipAdd()')
     }
     const contact = await this.cacheManager.getContact(contactId)
+    const extend = uuid()
 
     if (contact) {
-      await this.user.addFriend(this.id, contact.account, hello)
+      await this.user.addFriend(this.id, contact.account, hello, extend)
     } else {
-      await this.user.addFriend(this.id, contactId, hello)
+      await this.user.addFriend(this.id, contactId, hello, extend)
     }
-    await new Promise<AddFriend>(async (resolve) => {
-      const callId = `${this.id}_${contactId}`
-      this.addFriendCB[callId] = (data: any) => {
+    const result = await new Promise<AddFriend>(async (resolve) => {
+      this.addFriendCB[extend] = (data: any) => {
         resolve(data)
       }
     })
+    return result
   }
 
   public async friendshipAccept (
