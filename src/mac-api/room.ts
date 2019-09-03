@@ -72,7 +72,6 @@ export default class MacproRoom {
     }
   }
 
-  // 获取微信群详细信息 TODO: 需要核实返回的字段及类型
   public roomDetailInfo = async (loginId: string, roomId: string): Promise<GrpcRoomDetailInfo> => {
     log.verbose(PRE, `roomDetailInfo(${loginId}, ${roomId})`)
 
@@ -88,11 +87,12 @@ export default class MacproRoom {
     return res
   }
 
-  public createRoom = async (loginId: string, contactIdList: string[]): Promise<RequestStatus> => {
-    log.verbose(PRE, `createRoom(${loginId}, ${contactIdList})`)
+  public createRoom = async (loginId: string, contactIdList: string[], topic?: string): Promise<RequestStatus> => {
+    log.verbose(PRE, `createRoom(${loginId}, ${contactIdList}, ${topic})`)
 
     const data = {
       account: contactIdList.toString(),
+      group_number: topic,
       my_account: loginId,
     }
 
@@ -100,7 +100,7 @@ export default class MacproRoom {
       apiName: 'createRoom',
       data,
     })
-    log.silly(PRE, `createRoom res : ${res}`)
+    log.silly(PRE, `createRoom res : ${JSON.stringify(res)}`)
     if (res) {
       return RequestStatus.Success
     } else {

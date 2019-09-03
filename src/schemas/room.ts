@@ -72,10 +72,12 @@ export interface MacproRoomMemberPayload {
 }
 
 export interface MacproCreateRoom {
-  account: string, // room id
-  extend: string,
-  name: string,
-  headerImage: string,
+  group_nickname: string,
+  group_number: string,
+  headimg: string,
+  owner: string,
+  qrcode: string,
+  type: string,
 }
 
 export interface MacproRoomInvitationPayload {

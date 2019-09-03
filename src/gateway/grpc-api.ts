@@ -1,6 +1,6 @@
 import grpc from 'grpc'
 import util from 'util'
-import { log } from '../config'
+import { log, macproToken } from '../config'
 
 import { MacproRequestClient } from './proto-ts/Macpro_grpc_pb'
 
@@ -13,7 +13,7 @@ import { EventEmitter } from 'events'
 
 const PRE = 'GRPC_GATEWAY'
 
-export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-member' | 'room-create' | 'room-join' | 'room-qrcode' | 'reconnect'
+export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-member' | 'room-create' | 'room-join' | 'room-qrcode' | 'reconnect' | 'invalid-token'
 
 export class GrpcGateway extends EventEmitter {
 
@@ -50,9 +50,11 @@ export class GrpcGateway extends EventEmitter {
         log.silly(PRE, `error data : ${util.inspect(data)}`)
       }
     } catch (err) {
-      // TODO: 错误处理
-      log.silly(PRE, `error : ${err}`)
-      throw new Error(`can not get data from transmit server`)
+      log.silly(PRE, `error : ${util.inspect(err)}`)
+      if (err.details === 'INVALID_TOKEN') {
+        macproToken()
+      }
+      throw new Error(`Can not get data from Transmit Server`)
     }
   }
 
@@ -71,6 +73,7 @@ export class GrpcGateway extends EventEmitter {
     })
   }
 
+  public emit (event: 'invalid-token', data: string): boolean
   public emit (event: 'not-login', data: string): boolean
   public emit (event: 'contact-list', data: string): boolean
   public emit (event: 'new-friend', data: string): boolean
@@ -146,6 +149,9 @@ export class GrpcGateway extends EventEmitter {
       result.on('data', (data: MessageStream) => {
         log.silly(PRE, `event code :  ${data.getCode()}`)
         switch (data.getCode()) {
+          case 'invalid-token':
+            macproToken()
+            break
           case 'not-login':
             this.emit('not-login', data.getData())
             break

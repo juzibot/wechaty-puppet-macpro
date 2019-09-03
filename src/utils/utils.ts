@@ -1,5 +1,3 @@
-import { log } from '../config'
-
 const crypto = require('crypto')
 
 export default class Util {
@@ -25,22 +23,6 @@ export default class Util {
     const data = hswebtime + key
     const md5 = crypto.createHash('md5').update(data, 'utf8').digest('hex')
     return md5
-  }
-
-  public static macproToken = () => {
-    const token = process.env.WECHATY_PUPPET_MACPRO_TOKEN as string
-    if (!token) {
-      log.error('PuppetMacproConfig', `
-
-        WECHATY_PUPPET_MACPRO_TOKEN environment variable not found.
-
-        PuppetPadpro need a token before it can be used,
-        Please set WECHATY_PUPPET_MACPRO_TOKEN then retry again.
-
-      `)
-      throw new Error('You need a valid WECHATY_PUPPET_MACPRO_TOKEN to use PuppetMacpro')
-    }
-    return token
   }
 
 }
