@@ -160,7 +160,7 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async start (): Promise<void> {
-
+    let testNum = 0 // 47:26(0) => 49:55(14) => 51:57(16)
     log.silly(PRE, `start()`)
 
     this.state.on('pending')
@@ -205,7 +205,7 @@ export class PuppetMacpro extends Puppet {
 
       const selfPayload: MacproContactPayload = {
         account: data.account,
-        accountAlias: data.account_alias,
+        accountAlias: data.account_alias || data.account,
         area: '',
         description: '',
         disturb: '',
@@ -226,7 +226,12 @@ export class PuppetMacpro extends Puppet {
     this.grpcGateway.on('contact-list', data => this.setContactToCache(data))
 
     this.grpcGateway.on('room-member', async memberStr => {
-
+      testNum++
+      log.silly(PRE, `
+      ==========================================
+      testNum : ${util.inspect(testNum)}
+      ==========================================
+      `)
       const members: GrpcRoomMemberPayload[] = JSON.parse(memberStr).memberList
       const macproMembers: MacproRoomMemberPayload[] = []
       let payload: { [contactId: string]: MacproRoomMemberPayload } = {}
@@ -234,7 +239,7 @@ export class PuppetMacpro extends Puppet {
         if (member.userName) {
           const roomMemberPayload: MacproRoomMemberPayload = {
             account: member.userName,
-            accountAlias: '',
+            accountAlias: member.userName,
             area: '',
             description: '',
             disturb: '',
@@ -253,7 +258,7 @@ export class PuppetMacpro extends Puppet {
           const _contact = await this.cacheManager.getContact(member.userName)
           if (!_contact) {
             const contact: MacproContactPayload = {
-              account: '',
+              account: member.userName,
               accountAlias: member.userName,
               area: '',
               description: '',
@@ -401,10 +406,7 @@ export class PuppetMacpro extends Puppet {
         }
         await this.cacheManager.setRoom(r.number, room)
 
-        const result = await this.room.roomMember(this.id, r.number)
-        if (result === RequestStatus.Fail) {
-          await this.room.roomMember(this.id, r.number)
-        }
+        await this.room.roomMember(this.id, r.number)
       })
     })
   }
@@ -447,7 +449,7 @@ export class PuppetMacpro extends Puppet {
       } else {
         const contact: MacproContactPayload = {
           account: payload.to_account,
-          accountAlias: payload.to_account_alias,
+          accountAlias: payload.to_account_alias || payload.to_account,
           area: '',
           description: '',
           disturb: '',
@@ -554,7 +556,7 @@ export class PuppetMacpro extends Puppet {
     info.map(async (_contact: GrpcContactPayload) => {
       const contact: MacproContactPayload = {
         account: _contact.account,
-        accountAlias: _contact.account_alias,
+        accountAlias: _contact.account_alias || _contact.account,
         area: _contact.area,
         description: _contact.description,
         disturb: _contact.disturb,
@@ -1217,13 +1219,13 @@ export class PuppetMacpro extends Puppet {
   ): Promise<MacproRoomPayload> {
     log.verbose(PRE, 'roomRawPayload(%s)', id)
 
-    if (!this.cacheManager) {
+    if (!this.cacheManager) { // 21:04:50(0) => 21:06:18(9) => 21:11:30(16)
       throw CacheManageError('roomRawPayload()')
     }
 
     let rawPayload = await this.cacheManager.getRoom(id)
 
-    if (!rawPayload) {
+    if (!rawPayload || rawPayload.members.length === 0 || rawPayload.owner === '') {
       if (!this.id) {
         throw NoIDError(`roomRawPayload()`)
       }
@@ -1254,7 +1256,7 @@ export class PuppetMacpro extends Puppet {
     _members.map(m => {
       const member: MacproRoomMemberPayload = {
         account: m.account,
-        accountAlias: m.account_alias,
+        accountAlias: m.account_alias || m.account,
         area: m.area,
         description: m.description,
         disturb: '',

@@ -26,7 +26,7 @@ export default class MacproRoom {
       apiName: 'modifyRoomTopic',
       data,
     })
-    log.silly(PRE, `message : ${res.msg}`)
+    log.silly(PRE, `message : ${JSON.stringify(res)}`)
     if (res.code === RequestStatus.Success) {
       return RequestStatus.Success
     } else {
@@ -64,7 +64,7 @@ export default class MacproRoom {
       apiName: 'getRoomMemberList',
       data,
     })
-    log.silly(PRE, `message : ${res.msg}`)
+    log.silly(PRE, `message : ${JSON.stringify(res)}`)
     if (res.code === RequestStatus.Success) {
       return RequestStatus.Success
     } else {
@@ -92,9 +92,9 @@ export default class MacproRoom {
 
     const data = {
       account: contactIdList.toString(),
+      extend: loginId,
       group_number: topic,
       my_account: loginId,
-      extend: loginId,
     }
 
     const res = await this.requestClient.request({
@@ -200,7 +200,7 @@ export default class MacproRoom {
       apiName: 'leaveRoom',
       data,
     })
-    log.silly(PRE, `roomQuit message : ${res.msg}`)
+    log.silly(PRE, `roomQuit message : ${JSON.stringify(res)}`)
     if (res) {
       return RequestStatus.Success
     } else {
@@ -242,7 +242,7 @@ export default class MacproRoom {
       apiName: 'atRoomMember',
       data,
     })
-    log.silly(PRE, `message : ${res.msg}`)
+    log.silly(PRE, `message : ${JSON.stringify(res)}`)
     if (res.code === RequestStatus.Success) {
       return RequestStatus.Success
     } else {

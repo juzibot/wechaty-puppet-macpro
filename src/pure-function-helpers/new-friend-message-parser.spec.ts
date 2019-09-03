@@ -25,7 +25,7 @@ test('messageRawPayloadParser', async t => {
     }
     const EXPECTED_MESSAGE_PAYLOAD_TEXT: MacproContactPayload = {
       account: 'botorange333',
-      accountAlias: '',
+      accountAlias: 'botorange333',
       area: '',
       description: '',
       disturb: '',

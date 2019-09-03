@@ -18,7 +18,7 @@ export function newFriendMessageParser (
     const contactInfo: NewFriendMessageContactInfo = JSON.parse(data)
     const contact: MacproContactPayload = {
       account: contactInfo.account,
-      accountAlias: '',
+      accountAlias: contactInfo.account,
       area: contactInfo.area,
       description: '',
       disturb: '',

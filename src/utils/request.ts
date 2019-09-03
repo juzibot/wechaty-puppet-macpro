@@ -1,6 +1,6 @@
 import AWS from 'aws-sdk'
 
-import { log, AWS_S3 } from '../config'
+import { log, AWS_S3, retry } from '../config'
 import { GrpcGateway } from '../gateway/grpc-api'
 
 export interface RequestOption {
@@ -20,7 +20,13 @@ export class RequestClient {
 
   public async request (option: RequestOption) {
     log.silly(PRE, `request()`)
-    const result = await this.grpcGateway.request(option.apiName, option.data)
+    const result = await retry(async (retryException) => {
+      const res = await this.grpcGateway.request(option.apiName, option.data)
+      if (res && !res.err) {
+        return res
+      }
+      return retryException(new Error('tryRawPayload empty'))
+    })
 
     return result
   }
