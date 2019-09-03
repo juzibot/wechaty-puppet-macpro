@@ -1231,6 +1231,13 @@ export class PuppetMacpro extends Puppet {
       const roomDetail = await this.room.roomDetailInfo(this.id, id)
       if (roomDetail) {
         rawPayload = await this.roomInfoConvert(roomDetail)
+        if (this.cacheManager) {
+          await this.cacheManager.setRoom(id, rawPayload)
+          const members = rawPayload.members
+          const memberCache: { [memberId: string]: MacproRoomMemberPayload } = {}
+          members.forEach(m => { memberCache[m.accountAlias] = m })
+          await this.cacheManager.setRoomMember(id, memberCache)
+        }
       } else {
         throw new Error(`no payload`)
       }
@@ -1305,6 +1312,8 @@ export class PuppetMacpro extends Puppet {
 
       if (roomMembers && Object.keys(roomMembers).length > 0) {
         _roomList.push(roomId)
+      } else {
+        await this.roomRawPayload(roomId)
       }
 
     }))
