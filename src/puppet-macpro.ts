@@ -1205,7 +1205,7 @@ export class PuppetMacpro extends Puppet {
 
     let rawPayload = await this.cacheManager.getRoom(id)
 
-    if (!rawPayload) {
+    if (!rawPayload || rawPayload.members.length === 0 || rawPayload.owner === '') {
       if (!this.id) {
         throw NoIDError(`roomRawPayload()`)
       }
