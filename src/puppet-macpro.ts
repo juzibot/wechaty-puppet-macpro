@@ -152,7 +152,8 @@ export class PuppetMacpro extends Puppet {
       this.user = new MacproUser(token, this.requestClient)
       this.message = new MacproMessage(this.requestClient)
       this.room = new MacproRoom(this.requestClient)
-      this.apiQueue = new DelayQueueExecutor(30)
+      const min = 0.5
+      this.apiQueue = new DelayQueueExecutor(Math.max(min, Math.random() * 2) * 1000)
     } else {
       log.error(PRE, `can not get token info from options for start grpc gateway.`)
       throw new Error(`can not get token info.`)
@@ -1443,27 +1444,27 @@ export class PuppetMacpro extends Puppet {
     }
     await this.room.createRoom(this.id, contactIdList, topic)
 
-    await this.grpcGateway.on('room-create', async data => {
-      log.silly(PRE, `room-create : ${util.inspect(JSON.parse(data))}`)
+    return new Promise<string>((resolve) => {
+      this.grpcGateway.on('room-create', async data => {
+        log.silly(PRE, `room-create : ${util.inspect(JSON.parse(data))}`)
 
-      const roomCreate: MacproCreateRoom = JSON.parse(data)
+        const roomCreate: MacproCreateRoom = JSON.parse(data)
 
-      const roomPayload = await this.convertCreateRoom(roomCreate, contactIdList.toString())
+        const roomPayload = await this.convertCreateRoom(roomCreate, contactIdList.toString())
 
-      if (!this.cacheManager) {
-        throw CacheManageError('roomCreate()')
-      }
+        if (!this.cacheManager) {
+          throw CacheManageError('roomCreate()')
+        }
 
-      if (roomCreate && roomCreate.account) {
-        await this.cacheManager.setRoom(roomCreate.account, roomPayload)
-      }
-      const roomId = roomCreate.account
+        if (roomCreate && roomCreate.account) {
+          await this.cacheManager.setRoom(roomCreate.account, roomPayload)
+        }
+        const roomId = roomCreate.account
 
-      return roomId
+        resolve(roomId)
+      })
     })
 
-    log.silly(PRE, `can not get room id, bcz no room-create event happened.`)
-    throw new Error(`can not get room id, bcz no room-create event happened.`)
   }
 
   private async convertCreateRoom (room: MacproCreateRoom, contactIdList: string): Promise<MacproRoomPayload> {
@@ -1475,8 +1476,13 @@ export class PuppetMacpro extends Puppet {
       if (!this.cacheManager) {
         throw CacheManageError('convertCreateRoom()')
       }
-
-      const contact = await this.cacheManager.getContact(contactId)
+      const wxid = await this.cacheManager.getAccountWXID(contactId)
+      let contact: MacproContactPayload | undefined
+      if (!wxid) {
+        contact = await this.cacheManager.getContact(contactId)
+      } else {
+        contact = await this.cacheManager.getContact(wxid)
+      }
       if (contact) {
         members.push(contact)
       } else {
@@ -1489,7 +1495,7 @@ export class PuppetMacpro extends Puppet {
       members,
       name: room.name,
       number: room.account,
-      owner: '',
+      owner: room.my_account,
       thumb: room.headerImage,
     }
     return roomPayload

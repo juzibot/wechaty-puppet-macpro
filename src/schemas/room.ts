@@ -76,6 +76,8 @@ export interface MacproCreateRoom {
   extend: string,
   name: string,
   headerImage: string,
+  my_account_alias: string, // 微信号 Fuck
+  my_account: string, // wxid Fuck
 }
 
 export interface MacproRoomInvitationPayload {
