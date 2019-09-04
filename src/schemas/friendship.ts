@@ -36,4 +36,5 @@ export interface AddFriend {
   type: number,
   time: number,
   data: Friend,
+  extend: string,
 }

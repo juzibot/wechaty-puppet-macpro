@@ -83,12 +83,18 @@ export default class MacproUser {
   }
 
   // 添加好友
-  public addFriend = async (loginedId: string, account: string, content: string): Promise<RequestStatus> => {
+  public addFriend = async (
+    loginedId: string,
+    account: string,
+    content: string,
+    extend: string
+  ): Promise<RequestStatus> => {
     log.silly(PRE, `addFriend(${loginedId}, ${account}, ${content})`)
 
     const data = {
       account: account,
       content: content,
+      extend,
       my_account: loginedId,
     }
 
