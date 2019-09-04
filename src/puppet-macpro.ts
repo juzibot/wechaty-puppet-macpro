@@ -160,7 +160,6 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async start (): Promise<void> {
-    let testNum = 0 // 47:26(0) => 49:55(14) => 51:57(16)
     log.silly(PRE, `start()`)
 
     this.state.on('pending')
@@ -226,12 +225,6 @@ export class PuppetMacpro extends Puppet {
     this.grpcGateway.on('contact-list', data => this.setContactToCache(data))
 
     this.grpcGateway.on('room-member', async memberStr => {
-      testNum++
-      log.silly(PRE, `
-      ==========================================
-      testNum : ${util.inspect(testNum)}
-      ==========================================
-      `)
       const members: GrpcRoomMemberPayload[] = JSON.parse(memberStr).memberList
       const macproMembers: MacproRoomMemberPayload[] = []
       let payload: { [contactId: string]: MacproRoomMemberPayload } = {}
@@ -1219,7 +1212,7 @@ export class PuppetMacpro extends Puppet {
   ): Promise<MacproRoomPayload> {
     log.verbose(PRE, 'roomRawPayload(%s)', id)
 
-    if (!this.cacheManager) { // 21:04:50(0) => 21:06:18(9) => 21:11:30(16)
+    if (!this.cacheManager) {
       throw CacheManageError('roomRawPayload()')
     }
 

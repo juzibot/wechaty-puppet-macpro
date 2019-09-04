@@ -88,6 +88,7 @@
     "normalize-package-data": "^2.4.0",
     "promise-retry": "^1.1.1",
     "qr-image": "^3.2.0",
+    "rx-queue": "^0.8.5",
     "state-switch": "^0.6.2",
     "uuid": "^3.3.3",
     "watchdog": "^0.8.10",
