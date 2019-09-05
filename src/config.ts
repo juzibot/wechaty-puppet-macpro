@@ -24,7 +24,7 @@ export const macproToken = () => {
 /**
  * GRPC server
  */
-export const GRPC_ENDPOINT = '52.82.124.54:3334' // TODO: 切换到测试
+export const GRPC_ENDPOINT = '52.82.124.54:3333'
 
 export const MESSAGE_CACHE_AGE = 1000 * 60 * 60
 export const MESSAGE_CACHE_MAX = 1000
