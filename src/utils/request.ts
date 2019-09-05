@@ -29,6 +29,8 @@ export class RequestClient {
     })
 
     return result
+    /* const res = await this.grpcGateway.request(option.apiName, option.data)
+    return res */
   }
 
   public async uploadFile (filename: string, stream: NodeJS.ReadableStream) {

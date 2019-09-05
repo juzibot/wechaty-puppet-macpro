@@ -24,7 +24,7 @@ export const macproToken = () => {
 /**
  * GRPC server
  */
-export const GRPC_ENDPOINT = '52.82.124.54:3333'
+export const GRPC_ENDPOINT = '52.82.124.54:3334' // TODO: 切换到测试
 
 export const MESSAGE_CACHE_AGE = 1000 * 60 * 60
 export const MESSAGE_CACHE_MAX = 1000
@@ -55,7 +55,8 @@ export async function retry<T> (
   retryableFn: (
     retry: (error: Error) => never,
     attempt: number,
-  ) => Promise<T>,
+    ) => Promise<T>,
+  num?: number,
 ): Promise<T> {
   /**
    * 60 seconds: (to be confirmed)
@@ -66,7 +67,7 @@ export async function retry<T> (
    */
   const factor     = 3
   const minTimeout = 10
-  const maxTimeout = 20 * 1000
+  const maxTimeout = (num || 20) * 1000
   const retries    = 9
   // const unref      = true
 

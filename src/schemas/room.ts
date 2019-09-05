@@ -5,6 +5,7 @@ import { ContactGender } from 'wechaty-puppet/dist/src/schemas/contact'
 export interface GrpcRoomPayload {
   number: string,
   name: string,
+  author: string,
   thumb: string,
   disturb: number,
 }

@@ -38,3 +38,19 @@ export interface AddFriend {
   data: Friend,
   extend: string,
 }
+
+export interface AddFriendBeforeAccept {
+  my_account: string,
+  phone: number,
+  to_account: string,
+  to_name: string,
+  to_thumb: string,
+  type: number,
+}
+
+export interface MacproFriendInfo {
+  friendAccount: string,
+  friendPhone: number,
+  friendThumb: string,
+  myAccount: string,
+}

@@ -123,3 +123,10 @@ export enum MessageSendType {
   SELF_SENT = 1,
   CONTACT_SENT = 2,
 }
+
+export enum CallbackType {
+  SendAddFriend = 1,
+  WeChatInfo    = 2,
+  LabelList     = 3,
+  ScanStatus    = 4,
+}

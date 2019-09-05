@@ -87,14 +87,12 @@ export default class MacproUser {
     loginedId: string,
     account: string,
     content: string,
-    extend: string
   ): Promise<RequestStatus> => {
     log.silly(PRE, `addFriend(${loginedId}, ${account}, ${content})`)
 
     const data = {
       account: account,
       content: content,
-      extend,
       my_account: loginedId,
     }
 

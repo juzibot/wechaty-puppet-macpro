@@ -57,7 +57,7 @@ export default class MacproContact {
       apiName: 'modifyFriendAlias',
       data,
     })
-    log.silly(PRE, `setAlias message : ${res.msg}`)
+
     if (res.code === RequestStatus.Success) {
       return RequestStatus.Success
     } else {
@@ -77,7 +77,7 @@ export default class MacproContact {
       apiName: 'getContactList',
       data,
     })
-    log.silly(PRE, `contactList message : ${res.msg}`)
+
     if (res.code === RequestStatus.Success) {
       return RequestStatus.Success
     } else {
