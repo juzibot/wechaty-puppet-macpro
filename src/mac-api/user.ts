@@ -35,18 +35,10 @@ export default class MacproUser {
   }
 
   // 获取微信登录二维码
-  public getWeChatQRCode = async (account?: string) => {
-    log.silly(PRE, `getWeChatQRCode(${account})`)
-    let data = {}
-    if (account) {
-      data = {
-        account,
-        extend: this.token,
-      }
-    } else {
-      data = {
-        extend: this.token,
-      }
+  public getWeChatQRCode = async (retryException: any) => {
+    log.silly(PRE, `getWeChatQRCode()`)
+    let data = {
+      extend: this.token,
     }
 
     const res = await this.requestClient.request({
@@ -57,7 +49,7 @@ export default class MacproUser {
     if (res.task_id) {
       log.silly(PRE, `ready for scanning qrcode for login.`)
     } else {
-      throw new Error('Get qrcode url failed.')
+      return retryException(new Error('tryRawPayload empty'))
     }
   }
 

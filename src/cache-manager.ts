@@ -76,10 +76,11 @@ export class CacheManager {
     account: string,
   ): Promise<string | undefined> {
     if (!this.cacheWXID) {
-      throw new Error(`${PRE} setWXID() has no cache.`)
+      throw new Error(`${PRE} getWXID() has no cache.`)
     }
     return this.cacheWXID.get(account)
   }
+
   public async setAccountWXID (
     account: string,
     wxid: string,

@@ -316,8 +316,8 @@ export class PuppetMacpro extends Puppet {
       `)
       log.silly(PRE, `dataStr : ${util.inspect(dataStr)}`)
 
-      await retry(async () => {
-        await this.user.getWeChatQRCode()
+      await retry(async (retryException) => {
+        return this.user.getWeChatQRCode(retryException)
       }, 3)
 
     })
@@ -645,15 +645,8 @@ export class PuppetMacpro extends Puppet {
    * Contact
    *
    */
-  private contactRawPayloadNumber: number = 0
   public async contactRawPayload (id: string): Promise<MacproContactPayload> {
     log.verbose(PRE, 'contactRawPayload(%s)', id)
-    this.contactRawPayloadNumber++
-    log.silly(PRE, `
-    ========================================================================
-    contact payload number : ${this.contactRawPayloadNumber}
-    ========================================================================
-    `)
     if (!this.cacheManager) {
       throw CacheManageError('contactRawPayload()')
     }
@@ -670,7 +663,9 @@ export class PuppetMacpro extends Puppet {
     }
 
     if (!rawPayload) {
-      rawPayload = await this.contact.getContactInfo(this.id, id)
+      if (id.indexOf('wxid_') === -1) {
+        rawPayload = await this.contact.getContactInfo(this.id, id)
+      }
       log.silly(PRE, `contact rawPayload from API : ${util.inspect(rawPayload)}`)
       if (!rawPayload) {
         throw new Error(`can not find contact by wxid : ${id}`)
@@ -1400,6 +1395,14 @@ export class PuppetMacpro extends Puppet {
     }
 
     return payload
+  }
+
+  public async roomPayloadDirty (roomId: string) {
+    log.silly(`some one want to delete ROOM cache :${roomId}`)
+  }
+
+  public async roomMemberPayloadDirty (roomId: string) {
+    log.silly(`some one want to delete ROOM MEMBER cache :${roomId}`)
   }
 
   public async roomAvatar (roomId: string): Promise<FileBox> {
