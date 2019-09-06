@@ -77,6 +77,7 @@ import {
   MacproMessagePayload,
   AddFriendBeforeAccept,
   MacproFriendInfo,
+  MacproUrlLink,
 } from './schemas'
 
 import { RequestClient } from './utils/request'
@@ -912,12 +913,18 @@ export class PuppetMacpro extends Puppet {
 
     const contactIdOrRoomId =  to.roomId || to.contactId
 
-    const { url, title, description } = urlLinkPayload
+    const { url, title, thumbnailUrl, description } = urlLinkPayload
 
+    const payload: MacproUrlLink = {
+      description,
+      thumbnailUrl,
+      title,
+      url,
+    }
     if (!this.id) {
       throw NoIDError(`messageSendUrl()`)
     }
-    await this.message.sendUrlLink(this.id, contactIdOrRoomId!, url, title, description)
+    await this.message.sendUrlLink(this.id, contactIdOrRoomId!, payload)
   }
 
   public async messageRawPayload (id: string): Promise<MacproMessagePayload> {

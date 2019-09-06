@@ -64,3 +64,10 @@ export interface MiniProgram  {
   page_path?: string,
   type?: number,
 }
+
+export interface MacproUrlLink {
+  description?  : string,
+  thumbnailUrl? : string,
+  title         : string,
+  url           : string,
+}

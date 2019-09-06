@@ -1,5 +1,5 @@
 import { log } from '../config'
-import { RequestStatus, MacproMessageType, MiniProgram } from '../schemas'
+import { RequestStatus, MacproMessageType, MiniProgram, MacproUrlLink } from '../schemas'
 import { RequestClient } from '../utils/request'
 
 const PRE = 'MacproMessage'
@@ -28,7 +28,7 @@ export default class MacproMessage {
       apiName: 'sendMessage',
       data,
     })
-    log.silly(PRE, `message : ${res.msg}`)
+    log.silly(PRE, `sendMessage : ${JSON.stringify(res)}`)
     if (res.code === RequestStatus.Success) {
       return RequestStatus.Success
     } else {
@@ -37,22 +37,23 @@ export default class MacproMessage {
   }
 
   // Send url link
-  public sendUrlLink = async (contactId: string, contactIdOrRoomId: string, url: string, title: string, describe?: string): Promise<RequestStatus> => {
+  public sendUrlLink = async (contactId: string, contactIdOrRoomId: string, urlLinkPayload: MacproUrlLink): Promise<RequestStatus> => {
     log.verbose(PRE, `sendUrlLink()`)
 
     const data = {
-      describe,
+      describe: urlLinkPayload.description,
       my_account: contactId,
-      title,
+      title: urlLinkPayload.title,
       to_account: contactIdOrRoomId,
-      url,
+      url: urlLinkPayload.url,
+      thumb: urlLinkPayload.thumbnailUrl,
     }
 
     const res = await this.requestClient.request({
       apiName: 'sendUrlLink',
       data,
     })
-    log.silly(PRE, `message : ${res.msg}`)
+    log.silly(PRE, `sendUrlLink : ${JSON.stringify(res)}`)
     if (res.code === RequestStatus.Success) {
       return RequestStatus.Success
     } else {
@@ -74,7 +75,7 @@ export default class MacproMessage {
       apiName: 'sendUserCard',
       data,
     })
-    log.silly(PRE, `message : ${res.msg}`)
+    log.silly(PRE, `sendContact : ${JSON.stringify(res)}`)
     if (res.code === RequestStatus.Success) {
       return RequestStatus.Success
     } else {
@@ -102,7 +103,7 @@ export default class MacproMessage {
       apiName: 'sendApp',
       data,
     })
-    log.silly(PRE, `message : ${res.msg}`)
+    log.silly(PRE, `sendMiniProgram : ${JSON.stringify(res)}`)
     if (res.code === RequestStatus.Success) {
       return RequestStatus.Success
     } else {
