@@ -1594,6 +1594,8 @@ export class PuppetMacpro extends Puppet {
     const contact = await this.cacheManager.getContact(id)
     if (contact && contact.account !== contact.accountAlias) {
       return contact.account
+    } else if (contact && contact.account) {
+      return contact.accountAlias
     } else {
       return ''
     }
