@@ -219,7 +219,9 @@ export class PuppetMacpro extends Puppet {
         v1: '',
       }
       await this.cacheManager.setContact(selfPayload.accountAlias, selfPayload)
-      await this.cacheManager.setAccountWXID(selfPayload.account, selfPayload.accountAlias)
+      if (data.account_alias) {
+        await this.cacheManager.setAccountWXID(selfPayload.account, selfPayload.accountAlias)
+      }
       await this.login(wxid)
 
     })
@@ -274,7 +276,6 @@ export class PuppetMacpro extends Puppet {
                 v1: '',
               }
               await this.cacheManager.setContact(member.userName, contact)
-              await this.cacheManager.setAccountWXID(member.userName, '')
             }
             await this.cacheManager.setRoomMember(member.number, payload)
 
@@ -446,28 +447,53 @@ export class PuppetMacpro extends Puppet {
     /**
      * Save account and account_alias info into contact
      */
-    if (this.cacheManager && payload.to_account && payload.to_account_alias) {
-      const cacheContact = await this.cacheManager.getContact(payload.to_account_alias)
-      if (cacheContact) {
-        cacheContact.accountAlias = payload.to_account_alias
-        cacheContact.account = payload.to_account
-        await this.cacheManager.setContact(payload.to_account_alias, cacheContact)
-      } else {
-        const contact: MacproContactPayload = {
-          account: payload.to_account,
-          accountAlias: payload.to_account_alias || payload.to_account,
-          area: '',
-          description: '',
-          disturb: '',
-          formName: payload.to_name,
-          name: payload.to_name,
-          sex: ContactGender.Unknown,
-          thumb: '',
-          v1: '',
+    if (this.cacheManager && payload.to_account) {
+      if (payload.to_account_alias) { // to_account 表示微信号 to_account_alias 表示wxid
+        const wxid = payload.to_account_alias
+        const cacheContact = await this.cacheManager.getContact(wxid)
+        if (cacheContact) {
+          cacheContact.accountAlias = wxid
+          cacheContact.account = payload.to_account
+          await this.cacheManager.setContact(wxid, cacheContact)
+        } else {
+          const contact: MacproContactPayload = {
+            account: payload.to_account,
+            accountAlias: wxid,
+            area: '',
+            description: '',
+            disturb: '',
+            formName: payload.to_name,
+            name: payload.to_name,
+            sex: ContactGender.Unknown,
+            thumb: '',
+            v1: '',
+          }
+          await this.cacheManager.setContact(wxid, contact)
         }
-        await this.cacheManager.setContact(payload.to_account_alias, contact)
+        await this.cacheManager.setAccountWXID(payload.to_account, payload.to_account_alias)
+      } else { // to_account 表示 wxid
+        const wxid = payload.to_account
+        const cacheContact = await this.cacheManager.getContact(wxid)
+        if (cacheContact) {
+          cacheContact.accountAlias = wxid
+          cacheContact.account = wxid
+          await this.cacheManager.setContact(wxid, cacheContact)
+        } else {
+          const contact: MacproContactPayload = {
+            account: wxid,
+            accountAlias: wxid,
+            area: '',
+            description: '',
+            disturb: '',
+            formName: payload.to_name,
+            name: payload.to_name,
+            sex: ContactGender.Unknown,
+            thumb: '',
+            v1: '',
+          }
+          await this.cacheManager.setContact(wxid, contact)
+        }
       }
-      await this.cacheManager.setAccountWXID(payload.to_account, payload.to_account_alias)
     }
 
     const messageType = payload.content_type
@@ -663,15 +689,16 @@ export class PuppetMacpro extends Puppet {
     }
 
     if (!rawPayload) {
-      if (id.indexOf('wxid_') === -1) {
+      const accountId = await this.getAccountId(id)
+      if (accountId) {
         rawPayload = await this.contact.getContactInfo(this.id, id)
+        await this.saveContactRawPayload(rawPayload)
       }
       log.silly(PRE, `contact rawPayload from API : ${util.inspect(rawPayload)}`)
       if (!rawPayload) {
         throw new Error(`can not find contact by wxid : ${id}`)
       }
     }
-    await this.saveContactRawPayload(rawPayload)
 
     return rawPayload
   }
@@ -682,12 +709,11 @@ export class PuppetMacpro extends Puppet {
     }
     if (rawPayload.accountAlias) {
       await this.cacheManager.setContact(rawPayload.accountAlias, rawPayload)
-      if (rawPayload.account) {
+      if (rawPayload.account && rawPayload.account !== rawPayload.accountAlias) {
         await this.cacheManager.setAccountWXID(rawPayload.account, rawPayload.accountAlias)
       }
     } else if (rawPayload.account) {
       await this.cacheManager.setContact(rawPayload.account, rawPayload)
-      await this.cacheManager.setAccountWXID(rawPayload.account, '')
     } else {
       log.silly(PRE, `
       ============================================================
@@ -716,6 +742,10 @@ export class PuppetMacpro extends Puppet {
       weixin    : rawPayload.account,
     }
     return payload
+  }
+
+  public async contactPayloadDirty (contactId: string): Promise<void> {
+    log.verbose(PRE, 'some one want to delete contact : %s', contactId)
   }
 
   public contactAlias (contactId: string)                      : Promise<string>
@@ -1239,7 +1269,7 @@ export class PuppetMacpro extends Puppet {
       log.silly(PRE, `get room raw payload from API`)
       const roomDetail = await this.room.roomDetailInfo(this.id, id)
       if (roomDetail) {
-        rawPayload = await this.roomInfoConvert(roomDetail)
+        rawPayload = await this.convertRoomInfoFromGrpc(roomDetail)
         if (this.cacheManager) {
           await this.cacheManager.setRoom(id, rawPayload)
           const members = rawPayload.members
@@ -1255,8 +1285,8 @@ export class PuppetMacpro extends Puppet {
     return rawPayload
   }
 
-  private async roomInfoConvert (roomDetail: GrpcRoomDetailInfo): Promise<MacproRoomPayload> {
-    log.silly(PRE, `roomInfoConvert()`)
+  private async convertRoomInfoFromGrpc (roomDetail: GrpcRoomDetailInfo): Promise<MacproRoomPayload> {
+    log.silly(PRE, `convertRoomInfoFromGrpc()`)
 
     const _members: GrpcRoomMember[] = roomDetail.data
     const members: MacproRoomMemberPayload[] = []
@@ -1283,7 +1313,6 @@ export class PuppetMacpro extends Puppet {
       owner: roomDetail.author,
       thumb: roomDetail.thumb,
     }
-    // TODO: convert data from grpc to macpro
     return roomPayload
   }
 
@@ -1345,7 +1374,7 @@ export class PuppetMacpro extends Puppet {
       roomMemberListPayload = {}
       const roomDetail = await this.room.roomDetailInfo(this.id, roomId)
       if (roomDetail) {
-        const temp: MacproRoomPayload = await this.roomInfoConvert(roomDetail)
+        const temp: MacproRoomPayload = await this.convertRoomInfoFromGrpc(roomDetail)
         temp.members.map(member => {
           roomMemberListPayload![member.accountAlias] = member
         })
@@ -1371,7 +1400,7 @@ export class PuppetMacpro extends Puppet {
       roomMemberListPayload = {}
       const roomDetail = await this.room.roomDetailInfo(this.id, roomId)
       if (roomDetail) {
-        const temp: MacproRoomPayload = await this.roomInfoConvert(roomDetail)
+        const temp: MacproRoomPayload = await this.convertRoomInfoFromGrpc(roomDetail)
         temp.members.map(member => {
           roomMemberListPayload![member.accountAlias] = member
         })
@@ -1541,7 +1570,7 @@ export class PuppetMacpro extends Puppet {
     }
     const accountId = await this.getAccountId(contactId)
     if (accountId === '') {
-      throw new Error(`can not find contact by id: ${contactId}`)
+      throw new Error(`can not get accountId for ADD MEMBER to ROOM : ${contactId}`)
     }
     const res = await this.room.roomAdd(this.id, roomId, accountId)
 
@@ -1556,16 +1585,10 @@ export class PuppetMacpro extends Puppet {
       throw CacheManageError('getAccountId()')
     }
     const contact = await this.cacheManager.getContact(id)
-    if (contact) {
-      const accountId = contact.account
-      return accountId
+    if (contact && contact.account !== contact.accountAlias) {
+      return contact.account
     } else {
-      const wxid = await this.cacheManager.getAccountWXID(id)
-      if (!wxid) {
-        return id
-      } else {
-        return ''
-      }
+      return ''
     }
   }
 
@@ -1580,7 +1603,7 @@ export class PuppetMacpro extends Puppet {
     }
     const accountId = await this.getAccountId(contactId)
     if (accountId === '') {
-      throw new Error(`can not find contact by id: ${contactId}`)
+      throw new Error(`can not get accountId for DELETE MEMBER to ROOM : ${contactId}`)
     }
     await this.room.roomDel(this.id, roomId, accountId)
   }
@@ -1701,10 +1724,10 @@ export class PuppetMacpro extends Puppet {
       throw CacheManageError('friendshipAdd()')
     }
     const contact = await this.cacheManager.getContact(contactId)
-    const extend = this.id + contactId // 标识唯一性： 用 this.id 和 contactId （回调会）
+    const extend = this.id + contactId
 
     if (contact) {
-      await this.user.addFriend(this.id, contact.account, hello)
+      await this.user.addFriend(this.id, contact.accountAlias, hello)
     } else {
       await this.user.addFriend(this.id, contactId, hello)
     }
