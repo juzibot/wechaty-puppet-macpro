@@ -43,10 +43,10 @@ export default class MacproMessage {
     const data = {
       describe: urlLinkPayload.description,
       my_account: contactId,
+      thumb: urlLinkPayload.thumbnailUrl,
       title: urlLinkPayload.title,
       to_account: contactIdOrRoomId,
       url: urlLinkPayload.url,
-      thumb: urlLinkPayload.thumbnailUrl,
     }
 
     const res = await this.requestClient.request({
