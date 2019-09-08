@@ -1,5 +1,10 @@
 # WECHATY-PUPPET-MACPRO
 
+## Notice
+
+1. wechaty-puppet-macpro is still in very Early Alpha Stage, please make sure you have the necessary engineering technics to deal with the bugs instead of just asking for support.
+2. If you need a stable version, please keep waiting until we release the stable one.
+
 ## Install
 
 ### 1. Init
