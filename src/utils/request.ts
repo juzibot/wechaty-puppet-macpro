@@ -25,7 +25,7 @@ export class RequestClient {
       if (res && !res.err) {
         return res
       }
-      return retryException(new Error('tryRawPayload empty'))
+      return retryException(new Error(`can not get response data from server, ApiName: ${option.apiName}`))
     })
 
     return result

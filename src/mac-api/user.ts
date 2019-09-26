@@ -49,7 +49,7 @@ export default class MacproUser {
     if (res.task_id) {
       log.silly(PRE, `ready for scanning qrcode for login.`)
     } else {
-      return retryException(new Error('tryRawPayload empty'))
+      return retryException(new Error('can not get qrcode from server.'))
     }
   }
 

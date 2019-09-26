@@ -92,7 +92,7 @@ export default class MacproRoom {
 
     const data = {
       account: contactIdList.toString(),
-      group_number: topic,
+      group_name: topic,
       my_account: loginId,
     }
 

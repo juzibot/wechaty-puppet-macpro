@@ -8,6 +8,7 @@ export interface GrpcRoomPayload {
   author: string,
   thumb: string,
   disturb: number,
+  chatroomData: any,
 }
 
 export interface GrpcRoomDetailInfo {

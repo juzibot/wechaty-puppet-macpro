@@ -134,6 +134,27 @@ export class PuppetMacpro extends Puppet {
 
   private addFriendCB: {[id: string]: any} = {}
 
+  private roomQrcodeCallbackMap?: { [roomId: string]: Array<(qrcode: string) => void> } = {}
+
+  private pushRoomQrcodeCallback (roomId: string, callback: (qrcode: string) => void) {
+    if (!this.roomQrcodeCallbackMap) {
+      throw new Error(`no roomQrcodeCallbackMap`)
+    }
+    this.roomQrcodeCallbackMap[roomId] = []
+    this.roomQrcodeCallbackMap[roomId].push(callback)
+  }
+
+  private resolveRoomQrcodeCallback (roomId: string, qrcode: string) {
+    if (!this.roomQrcodeCallbackMap) {
+      throw new Error(`no roomQrcodeCallbackMap`)
+    }
+    const callbacks = this.roomQrcodeCallbackMap[roomId] && this.roomQrcodeCallbackMap[roomId]
+    if (callbacks) {
+      callbacks.map(cb => cb(qrcode))
+      delete this.roomQrcodeCallbackMap[roomId]
+    }
+  }
+
   constructor (
     public options: PuppetOptions = {},
   ) {
@@ -230,6 +251,12 @@ export class PuppetMacpro extends Puppet {
     this.grpcGateway.on('message', data => this.onProcessMessage(JSON.parse(data)))
 
     this.grpcGateway.on('contact-list', data => this.setContactToCache(data))
+
+    this.grpcGateway.on('room-qrcode', (data: string) => {
+      const _data: GrpcRoomQrcode = JSON.parse(data)
+      log.silly(PRE, `room-qrcode : ${util.inspect(_data)}`)
+      this.resolveRoomQrcodeCallback(_data.group_number, _data.qrcode)
+    })
 
     this.grpcGateway.on('room-member', async memberStr => {
       num++
@@ -395,26 +422,67 @@ export class PuppetMacpro extends Puppet {
   private async getRoomDetailInfo (allRoom: GrpcRoomPayload[]): Promise<void> {
     log.verbose(PRE, `getRoomDetailInfo()`)
 
-    allRoom.forEach(async r => {
+    allRoom.forEach(async room => {
       await this.apiQueue.execute(async () => {
-        if (!this.id) {
-          throw NoIDError('getRoomDetailInfo()')
-        }
+        const data = room.chatroomData.split('{[heis#heis]}')
+        const idList = data[2].split(',')
+        const nameList = data[3].split(',')
+        const members: MacproRoomMemberPayload[] = []
+        await Promise.all(
+          idList.map(async (id: string, index: number) => {
+            if (!this.cacheManager) {
+              throw CacheManageError('getRoomDetailInfo()')
+            }
 
-        const room: MacproRoomPayload = {
-          disturb: r.disturb,
-          members: [],
-          name: r.name,
-          number: r.number,
-          owner: r.author,
-          thumb: r.thumb,
+            const _member = await this.cacheManager.getRoomMember(room.number)
+            let memberPayload: MacproRoomMemberPayload
+            if (_member && _member[id]) {
+              memberPayload = {
+                account: id,
+                accountAlias: id,
+                area: _member[id].area,
+                description: _member[id].description,
+                disturb: _member[id].disturb,
+                formName: _member[id].formName,
+                name: nameList[index],
+                sex: ContactGender.Unknown,
+                thumb: _member[id].thumb,
+                v1: _member[id].v1,
+              }
+            } else {
+              memberPayload = {
+                account: id,
+                accountAlias: id,
+                area: '',
+                description: '',
+                disturb: '',
+                formName: '',
+                name: nameList[index],
+                sex: ContactGender.Unknown,
+                thumb: '',
+                v1: '',
+              }
+            }
+            const member: {[contactId: string]: MacproRoomMemberPayload} = {}
+            member[id] = memberPayload
+            await this.cacheManager.setRoomMember(room.number, member)
+            members.push(memberPayload)
+          })
+        )
+        const roomPayload: MacproRoomPayload = {
+          disturb: room.disturb,
+          members,
+          name: room.name,
+          number: room.number,
+          owner: room.author,
+          thumb: room.thumb,
         }
         if (!this.cacheManager) {
           throw CacheManageError('getRoomDetailInfo()')
         }
-        await this.cacheManager.setRoom(r.number, room)
+        await this.cacheManager.setRoom(room.number, roomPayload)
 
-        await this.room.roomMember(this.id, r.number)
+        await this.room.roomMember(this.selfId(), room.number)
       })
     })
   }
@@ -1259,30 +1327,27 @@ export class PuppetMacpro extends Puppet {
    *
    */
   public async roomRawPayload (
-    id: string,
+    roomId: string,
   ): Promise<MacproRoomPayload> {
-    log.verbose(PRE, 'roomRawPayload(%s)', id)
+    log.verbose(PRE, 'roomRawPayload(%s)', roomId)
 
     if (!this.cacheManager) {
       throw CacheManageError('roomRawPayload()')
     }
 
-    let rawPayload = await this.cacheManager.getRoom(id)
+    let rawPayload = await this.cacheManager.getRoom(roomId)
 
     if (!rawPayload || rawPayload.members.length === 0 || rawPayload.owner === '') {
-      if (!this.id) {
-        throw NoIDError(`roomRawPayload()`)
-      }
       log.silly(PRE, `get room raw payload from API`)
-      const roomDetail = await this.room.roomDetailInfo(this.id, id)
+      const roomDetail = await this.room.roomDetailInfo(this.selfId(), roomId)
       if (roomDetail) {
         rawPayload = await this.convertRoomInfoFromGrpc(roomDetail)
         if (this.cacheManager) {
-          await this.cacheManager.setRoom(id, rawPayload)
+          await this.cacheManager.setRoom(roomId, rawPayload)
           const members = rawPayload.members
           const memberCache: { [memberId: string]: MacproRoomMemberPayload } = {}
           members.forEach(m => { memberCache[m.accountAlias] = m })
-          await this.cacheManager.setRoomMember(id, memberCache)
+          await this.cacheManager.setRoomMember(roomId, memberCache)
         }
       } else {
         throw new Error(`no payload`)
@@ -1634,15 +1699,11 @@ export class PuppetMacpro extends Puppet {
     }
     await this.room.roomQrcode(this.id, roomId)
 
-    // TODO: 需要将监听函数存入数组
-    const qrcode = await new Promise<string>((resolve) => {
-      this.grpcGateway.on('room-qrcode', (data: string) => {
-        const _data: GrpcRoomQrcode = JSON.parse(data)
-        log.silly(PRE, `room-qrcode : ${util.inspect(_data)}`)
-        resolve(_data.qrcode)
+    return new Promise((resolve) => {
+      this.pushRoomQrcodeCallback(roomId, (qrcode: string) => {
+        resolve(qrcode)
       })
     })
-    return qrcode
   }
 
   public async roomAnnounce (roomId: string)                : Promise<string>
