@@ -1,5 +1,11 @@
 # WECHATY-PUPPET-MACPRO
 
+## Notice
+
+1. wechaty-puppet-macpro is still in very Early Alpha Stage, please make sure you have the necessary engineering technics to deal with the bugs instead of just asking for support.
+2. You are welcome to file an issue to reproduce the problem, if it is reproducible, we will fix that as soon as possible.
+3. If you need a stable version, please keep waiting until we release the stable one.
+
 ## Install
 
 ### 1. Init
@@ -18,10 +24,10 @@ npm install wechaty
 
 ### 3. Install wechaty-puppet-macpro
 
-> Notice: wechaty-puppet-macpro still in alpha test period, so we keep updating the package, you should install the latest packge by using `@next` until we release the stable package.
+> Notice: wechaty-puppet-macpro still in alpha test period, so we keep updating the package, you should install the latest packge by using `@latest` until we release the stable package.
 
 ```js
-npm install wechaty-puppet-macpro@next
+npm install wechaty-puppet-macpro@latest
 ```
 
 ### 4. Install other dependency
