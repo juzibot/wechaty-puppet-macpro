@@ -177,8 +177,9 @@ export class PuppetMacpro extends Puppet {
       this.user = new MacproUser(token, this.requestClient)
       this.message = new MacproMessage(this.requestClient)
       this.room = new MacproRoom(this.requestClient)
-      const min = 0.5
-      this.apiQueue = new DelayQueueExecutor(/* Math.max(min, Math.random() * 2) * 1000 */min * 1000)
+      const max = 0.5
+      const min = 0.2
+      this.apiQueue = new DelayQueueExecutor(Math.max(min, Math.random() * max) * 1000)
     } else {
       log.error(PRE, `can not get token info from options for start grpc gateway.`)
       throw new Error(`can not get token info.`)
@@ -262,7 +263,7 @@ export class PuppetMacpro extends Puppet {
       num++
       log.silly(PRE, `
       ======================================================
-      room member times : ${num}
+      room member times : ${num}, roomId: ${JSON.parse(memberStr).memberList[0].number}
       ======================================================
       `)
       const members: GrpcRoomMemberPayload[] = JSON.parse(memberStr).memberList
@@ -490,7 +491,6 @@ export class PuppetMacpro extends Puppet {
   protected async onProcessMessage (messagePayload: GrpcPrivateMessagePayload | GrpcPublicMessagePayload) {
 
     log.verbose(PRE, `onProcessMessage()`)
-    log.silly(PRE, `message payload : ${JSON.stringify(messagePayload)}`)
     const contentType = messagePayload.content_type
 
     if (!contentType) {
@@ -768,7 +768,6 @@ export class PuppetMacpro extends Puppet {
         throw new Error(`can not find contact by wxid : ${id}`)
       }
     }
-
     return rawPayload
   }
 
@@ -799,22 +798,18 @@ export class PuppetMacpro extends Puppet {
     const payload: ContactPayload = {
       address   : rawPayload.area,
       alias     : rawPayload.formName,
-      avatar : rawPayload.thumb,
+      avatar    : rawPayload.thumb,
       city      : rawPayload.area,
       friend    : isStrangerV1(rawPayload.v1),
-      gender : rawPayload.sex,
-      id     : rawPayload.accountAlias || rawPayload.account,
-      name   : rawPayload.name,
+      gender    : rawPayload.sex,
+      id        : rawPayload.accountAlias || rawPayload.account,
+      name      : rawPayload.name,
       province  : rawPayload.area,
       signature : rawPayload.description,
-      type   : ContactType.Personal,
+      type      : ContactType.Personal,
       weixin    : rawPayload.account,
     }
     return payload
-  }
-
-  public async contactPayloadDirty (contactId: string): Promise<void> {
-    log.verbose(PRE, 'some one want to delete contact : %s', contactId)
   }
 
   public contactAlias (contactId: string)                      : Promise<string>
@@ -844,7 +839,18 @@ export class PuppetMacpro extends Puppet {
         loginedId: this.id,
         remark: alias || '',
       }
-      await this.contact.setAlias(aliasModel)
+      const res = await this.contact.setAlias(aliasModel)
+      if (res === RequestStatus.Success) {
+        if (!this.cacheManager) {
+          throw new Error(`no cacheManager`)
+        }
+        const contact = await this.cacheManager.getContact(contactId)
+        if (!contact) {
+          throw new Error(`can not find contact by id : ${contactId}`)
+        }
+        contact.formName = alias!
+        await this.cacheManager.setContact(contactId, contact)
+      }
     }
   }
 
@@ -1498,14 +1504,6 @@ export class PuppetMacpro extends Puppet {
     return payload
   }
 
-  public async roomPayloadDirty (roomId: string) {
-    log.silly(`some one want to delete ROOM cache :${roomId}`)
-  }
-
-  public async roomMemberPayloadDirty (roomId: string) {
-    log.silly(`some one want to delete ROOM MEMBER cache :${roomId}`)
-  }
-
   public async roomAvatar (roomId: string): Promise<FileBox> {
     log.verbose(PRE, 'roomAvatar(%s)', roomId)
 
@@ -1648,6 +1646,32 @@ export class PuppetMacpro extends Puppet {
 
     if (res === RequestStatus.Fail) {
       await this.room.roomInvite(this.id, roomId, accountId)
+    } else {
+      if (!this.cacheManager) {
+        throw new Error(`no cacheManager`)
+      }
+      const contact = await this.cacheManager.getContact(contactId)
+      if (!contact) {
+        throw new Error(`can not find contact by id: ${contactId} in contact cache manager`)
+      }
+      const member: MacproRoomMemberPayload = {
+        account: contact.account,
+        accountAlias: contact.accountAlias,
+        area: contact.area,
+        description: contact.description,
+        disturb: contact.disturb,
+        formName: contact.formName,
+        name: contact.name,
+        sex: contact.sex,
+        thumb: contact.thumb,
+        v1: contact.v1,
+      }
+      const roomMembers = await this.cacheManager.getRoomMember(roomId)
+      if (!roomMembers) {
+        throw new Error(`can not get room member from cache by roomId: ${roomId}`)
+      }
+      roomMembers[contactId] = member
+      await this.cacheManager.setRoomMember(roomId, roomMembers)
     }
 
   }
@@ -1679,7 +1703,18 @@ export class PuppetMacpro extends Puppet {
     if (accountId === '') {
       throw new Error(`can not get accountId for DELETE MEMBER to ROOM : ${contactId}`)
     }
-    await this.room.roomDel(this.id, roomId, accountId)
+    const res = await this.room.roomDel(this.id, roomId, accountId)
+    if (res === RequestStatus.Success) {
+      if (!this.cacheManager) {
+        throw new Error(`no cacheManager`)
+      }
+      const roomMembers = await this.cacheManager.getRoomMember(roomId)
+      if (!roomMembers) {
+        throw new Error(`can not get room member from cache by roomId: ${roomId}`)
+      }
+      delete roomMembers[contactId]
+      await this.cacheManager.setRoomMember(roomId, roomMembers)
+    }
   }
 
   public async roomQuit (roomId: string): Promise<void> {

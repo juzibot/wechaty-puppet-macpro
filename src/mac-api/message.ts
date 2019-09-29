@@ -66,7 +66,7 @@ export default class MacproMessage {
     log.verbose(PRE, `sendContact()`)
 
     const data = {
-      cardName,
+      card_name: cardName,
       my_account: contactId,
       to_account: contactIdOrRoomId,
     }
