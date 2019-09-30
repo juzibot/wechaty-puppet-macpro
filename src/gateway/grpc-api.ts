@@ -148,8 +148,19 @@ export class GrpcGateway extends EventEmitter {
     try {
       const result = this.client.notify(request)
 
-      result.on('error', (err) => {
+      result.on('error', async (err: any) => {
         log.error(PRE, err.stack)
+        log.error(PRE, `GRPC SERVER ERROR.
+        =====================================================================
+        try to reconnect grpc server, waiting...
+        =====================================================================
+        `)
+        if (err.code === 14 || err.code === 13 || err.code === 2) {
+          await new Promise(resolve => setTimeout(resolve, 5000))
+          this.emit('reconnect')
+        } else {
+          log.error(PRE, `stream error:`, util.inspect(err))
+        }
       })
       result.on('end', () => {
         log.error(PRE, 'grpc server end.')
@@ -210,23 +221,6 @@ export class GrpcGateway extends EventEmitter {
             log.error(PRE, `Can not get the notify`)
             throw new Error(`can not get the notify`)
         }
-      })
-      await new Promise((resolve, reject) => {
-        result.once('error', (err) => {
-          log.silly(PRE, 'grpc server error', err)
-          return reject(new Error('ERROR'))
-        })
-        result.once('end', () => {
-          log.silly(PRE, 'grpc server end')
-          return reject(new Error('END'))
-        })
-        result.once('close', () => {
-          log.silly(PRE, 'grpc server close')
-          return reject(new Error('CLOSE'))
-        })
-        result.once('data', (dataStr: string) => {
-          resolve(dataStr)
-        })
       })
     } catch (err) {
       log.silly(PRE, `error : ${err}`)

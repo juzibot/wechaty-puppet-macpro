@@ -1,5 +1,5 @@
 import { log } from '../config'
-import { GrpcRoomPayload, RequestStatus, GrpcRoomDetailInfo } from '../schemas'
+import { GrpcRoomPayload, RequestStatus, GrpcRoomDetailInfo, MacproRoomMemberPayload } from '../schemas'
 import { RequestClient } from '../utils/request'
 
 const PRE = 'MacproRoom'
@@ -10,6 +10,48 @@ export default class MacproRoom {
 
   constructor (requestClient: RequestClient) {
     this.requestClient = requestClient
+  }
+
+  private roomQrcodeCallbackMap?: { [roomId: string]: Array<(qrcode: string) => void> } = {}
+
+  public pushRoomQrcodeCallback (roomId: string, callback: (qrcode: string) => void) {
+    if (!this.roomQrcodeCallbackMap) {
+      throw new Error(`no roomQrcodeCallbackMap`)
+    }
+    this.roomQrcodeCallbackMap[roomId] = []
+    this.roomQrcodeCallbackMap[roomId].push(callback)
+  }
+
+  public resolveRoomQrcodeCallback (roomId: string, qrcode: string) {
+    if (!this.roomQrcodeCallbackMap) {
+      throw new Error(`no roomQrcodeCallbackMap`)
+    }
+    const callbacks = this.roomQrcodeCallbackMap[roomId] && this.roomQrcodeCallbackMap[roomId]
+    if (callbacks) {
+      callbacks.map(cb => cb(qrcode))
+      delete this.roomQrcodeCallbackMap[roomId]
+    }
+  }
+
+  private roomMemberCallbackMap?: { [roomId: string]: Array<(macproMembers: MacproRoomMemberPayload[]) => void> } = {}
+
+  public pushRoomMemberCallback (roomId: string, callback: (macproMembers: MacproRoomMemberPayload[]) => void) {
+    if (!this.roomMemberCallbackMap) {
+      throw new Error(`no roomMemberCallbackMap`)
+    }
+    this.roomMemberCallbackMap[roomId] = []
+    this.roomMemberCallbackMap[roomId].push(callback)
+  }
+
+  public resolveRoomMemberCallback (roomId: string, macproMembers: MacproRoomMemberPayload[]) {
+    if (!this.roomMemberCallbackMap) {
+      throw new Error(`no roomMemberCallbackMap`)
+    }
+    const callbacks = this.roomMemberCallbackMap[roomId] && this.roomMemberCallbackMap[roomId]
+    if (callbacks) {
+      callbacks.map(cb => cb(macproMembers))
+      delete this.roomMemberCallbackMap[roomId]
+    }
   }
 
   // 修改微信群名称
@@ -220,6 +262,26 @@ export default class MacproRoom {
       data,
     })
     log.silly(PRE, `roomQrcode message : ${JSON.stringify(res)}`)
+    if (res) {
+      return RequestStatus.Success
+    } else {
+      return RequestStatus.Fail
+    }
+  }
+
+  public setAnnouncement = async (selfId: string, roomId: string, text: string) => {
+    log.verbose(PRE, `setAnnouncement(${selfId}, ${roomId}, ${text})`)
+
+    const data = {
+      my_account: selfId,
+      notice: text,
+      number: roomId,
+    }
+
+    const res = await this.requestClient.request({
+      apiName: 'setRoomAnnounce',
+      data,
+    })
     if (res) {
       return RequestStatus.Success
     } else {

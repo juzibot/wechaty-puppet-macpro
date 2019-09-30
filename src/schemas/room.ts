@@ -60,6 +60,14 @@ export interface GrpcRoomMemberPayload {
   number: string, // room id
 }
 
+export interface GrpcRoomJoin {
+  g_number: string,
+  account: string,
+  name: string,
+  my_account: string,
+  type: number,
+}
+
 export interface MacproRoomMemberPayload {
   accountAlias: string,
   account: string,
