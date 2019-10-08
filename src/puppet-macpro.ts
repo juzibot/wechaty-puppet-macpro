@@ -385,10 +385,7 @@ export class PuppetMacpro extends Puppet {
       `)
       log.silly(PRE, `dataStr : ${util.inspect(dataStr)}`)
 
-      await retry(async (retryException) => {
-        return this.user.getWeChatQRCode(retryException)
-      }, 3)
-
+      return this.user.getWeChatQRCode()
     })
 
     this.grpcGateway.on('new-friend', async (dataStr: string) => {

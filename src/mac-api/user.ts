@@ -35,7 +35,7 @@ export default class MacproUser {
   }
 
   // 获取微信登录二维码
-  public getWeChatQRCode = async (retryException: any) => {
+  public getWeChatQRCode = async () => {
     log.silly(PRE, `getWeChatQRCode()`)
     let data = {
       extend: this.token,
@@ -49,7 +49,7 @@ export default class MacproUser {
     if (res.task_id) {
       log.silly(PRE, `ready for scanning qrcode for login.`)
     } else {
-      return retryException(new Error('can not get qrcode from server.'))
+      throw new Error(`can not get qrcode from grpc server`)
     }
   }
 
