@@ -11,10 +11,12 @@ import {
 } from './proto-ts/Macpro_pb'
 import { EventEmitter } from 'events'
 import { CallbackType } from '../schemas'
+import { DebounceQueue, ThrottleQueue } from 'rx-queue'
+import { Subscription } from 'rxjs'
 
 const PRE = 'GRPC_GATEWAY'
 
-export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-member' | 'room-create' | 'room-join' | 'room-qrcode' | 'reconnect' | 'invalid-token' | 'add-friend' | 'add-friend-before-accept'
+export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-member' | 'room-create' | 'room-join' | 'room-qrcode' | 'reconnect' | 'invalid-token' | 'add-friend' | 'add-friend-before-accept' | 'heartbeat'
 
 export class GrpcGateway extends EventEmitter {
 
@@ -22,11 +24,69 @@ export class GrpcGateway extends EventEmitter {
   private endpoint: string
   private client: MacproRequestClient
 
+  private debounceQueue?: DebounceQueue
+  private debounceQueueSubscription?: Subscription
+  private throttleQueue?: ThrottleQueue
+  private throttleQueueSubscription?: Subscription
+
   constructor (token: string, endpoint: string) {
     super()
     this.endpoint = endpoint
     this.token = token
     this.client = new MacproRequestClient(this.endpoint, grpc.credentials.createInsecure())
+
+    this.debounceQueue = new DebounceQueue(30 * 1000)
+    this.debounceQueueSubscription = this.debounceQueue.subscribe(async () => {
+      try {
+        await this.keepHeartbeat()
+      } catch (e) {
+        log.silly(PRE, `debounce error : ${util.inspect(e)}`)
+      }
+    })
+
+    this.throttleQueue = new ThrottleQueue(30 * 1000)
+    this.throttleQueueSubscription = this.throttleQueue.subscribe(() => {
+      log.silly(PRE, `throttleQueue emit heartbeat.`)
+      this.emit('heartbeat')
+    })
+  }
+
+  private async keepHeartbeat () {
+    log.silly(PRE, `keepHeartbeat()`)
+
+    try {
+      const res = await this.request('heartbeat')
+      if (!res) {
+        throw new Error(`no heartbeat response from grpc server`)
+      }
+    } catch (error) {
+      log.error(`can not get heartbeat from grpc server`)
+      this.emit('reconnect')
+    }
+  }
+
+  public async stop () {
+    this.client.close()
+
+    if (!this.throttleQueueSubscription || !this.debounceQueueSubscription) {
+      log.verbose(PRE, `releaseQueue() subscriptions have been released.`)
+    } else {
+      this.throttleQueueSubscription.unsubscribe()
+      this.debounceQueueSubscription.unsubscribe()
+
+      this.throttleQueueSubscription = undefined
+      this.debounceQueueSubscription = undefined
+    }
+
+    if (!this.debounceQueue || !this.throttleQueue) {
+      log.verbose(PRE, `releaseQueue() queues have been released.`)
+    } else {
+      this.debounceQueue.unsubscribe()
+      this.throttleQueue.unsubscribe()
+
+      this.debounceQueue = undefined
+      this.throttleQueue = undefined
+    }
   }
 
   public async request (apiName: string, data?: any): Promise<any> {
@@ -54,10 +114,10 @@ export class GrpcGateway extends EventEmitter {
       if (JSON.stringify(resData.code) === '1') {
         return resData.data || resData
       } else {
-        log.silly(PRE, `error data : ${util.inspect(resData)}`)
+        log.silly(PRE, `${apiName} request error data : ${util.inspect(resData)}`)
       }
     } catch (err) {
-      log.silly(PRE, `error : ${util.inspect(err)}`)
+      log.silly(PRE, `${apiName} request error`)
       if (err.details === 'INVALID_TOKEN') {
         macproToken()
       }
@@ -95,6 +155,7 @@ export class GrpcGateway extends EventEmitter {
   public emit (event: 'message', data: string): boolean
   public emit (event: 'logout', data: string): boolean
   public emit (event: 'reconnect'): boolean
+  public emit (event: 'heartbeat'): boolean
   public emit (event: never, data: string): never
 
   public emit (
@@ -118,6 +179,7 @@ export class GrpcGateway extends EventEmitter {
   public on (event: 'message', listener: ((data: string) => any)): this
   public on (event: 'logout', listener: ((data: string) => any)): this
   public on (event: 'reconnect', listener: (() => any)): this
+  public on (event: 'heartbeat', listener: (() => any)): this
   public on (event: never, listener: ((data: string) => any)): never
 
   public on (
@@ -149,7 +211,6 @@ export class GrpcGateway extends EventEmitter {
       const result = this.client.notify(request)
 
       result.on('error', async (err: any) => {
-        log.error(PRE, err.stack)
         log.error(PRE, `GRPC SERVER ERROR.
         =====================================================================
         try to reconnect grpc server, waiting...
@@ -170,6 +231,11 @@ export class GrpcGateway extends EventEmitter {
       })
       result.on('data', (data: MessageStream) => {
         log.silly(PRE, `event code :  ${data.getCode()}`)
+
+        if (this.debounceQueue && this.throttleQueue) {
+          this.debounceQueue.next(data)
+          this.throttleQueue.next(data)
+        }
         switch (data.getCode()) {
           case 'callback-send':
             const dataStr = data.getData()
@@ -216,6 +282,12 @@ export class GrpcGateway extends EventEmitter {
             break
           case 'new-friend':
             this.emit('new-friend', data.getData())
+            break
+          case 'heartbeat':
+            if (this.debounceQueue && this.throttleQueue) {
+              this.debounceQueue.next(data)
+              this.throttleQueue.next(data)
+            }
             break
           default:
             log.error(PRE, `Can not get the notify`)

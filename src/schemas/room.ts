@@ -65,7 +65,12 @@ export interface GrpcRoomJoin {
   account: string,
   name: string,
   my_account: string,
-  type: number,
+  type: string,
+}
+
+export enum RoomChangeState {
+  JOIN = '1',
+  LEAVE = '2',
 }
 
 export interface MacproRoomMemberPayload {

@@ -34,6 +34,14 @@ export default class MacproUser {
     return areaId
   }
 
+  public heartbeat = async () => {
+    log.silly(PRE, `heartbeat()`)
+
+    await this.requestClient.request({
+      apiName: 'heartbeat',
+    })
+  }
+
   // 获取微信登录二维码
   public getWeChatQRCode = async () => {
     log.silly(PRE, `getWeChatQRCode()`)
