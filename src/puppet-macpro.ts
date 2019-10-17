@@ -1340,6 +1340,10 @@ export class PuppetMacpro extends Puppet {
         fileBox.metadata = {
           voiceLength: messagePayload.voice_len,
         }
+      } else if (messageType === MacproMessageType.File) {
+        fileBox.metadata = {
+          fileName: messagePayload.file_name ? messagePayload.file_name : '未命名',
+        }
       }
       return fileBox
     } else {
