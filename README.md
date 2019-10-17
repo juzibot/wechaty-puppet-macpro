@@ -24,10 +24,10 @@ npm install wechaty
 
 ### 3. Install wechaty-puppet-macpro
 
-> Notice: wechaty-puppet-macpro still in alpha test period, so we keep updating the package, you should install the latest packge by using `@latest` until we release the stable package.
+> Notice: wechaty-puppet-macpro still in alpha test period, so we keep updating the package, you should install the next packge by using `@next` until we release the stable package.
 
 ```js
-npm install wechaty-puppet-macpro@latest
+npm install wechaty-puppet-macpro@next
 ```
 
 ### 4. Install other dependency

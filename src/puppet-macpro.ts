@@ -1314,6 +1314,11 @@ export class PuppetMacpro extends Puppet {
     }
   }
 
+  public async messageContact (messageId: string): Promise<string> {
+    log.warn(`messageContact() need to be implemented, ${messageId}`)
+    throw new Error(`messageContact() not supported now`)
+  }
+
   public async messageFile (id: string): Promise<FileBox> {
     if (!this.cacheManager) {
       throw new Error(`Can not get filebox from message since no cache manager.`)
