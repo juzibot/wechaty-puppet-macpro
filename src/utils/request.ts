@@ -20,15 +20,6 @@ export class RequestClient {
 
   public async request (option: RequestOption) {
     log.silly(PRE, `request()`)
-    /* const result = await retry(async (retryException) => {
-      const res = await this.grpcGateway.request(option.apiName, option.data)
-      if (res && !res.err) {
-        return res
-      }
-      return retryException(new Error(`can not get response data from server, ApiName: ${option.apiName}`))
-    }, option.apiName === 'loginScanQRCode' ? 3 : 20)
-
-    return result */
     const res = await this.grpcGateway.request(option.apiName, option.data)
     return res
   }

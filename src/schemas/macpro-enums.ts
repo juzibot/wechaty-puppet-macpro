@@ -129,4 +129,6 @@ export enum CallbackType {
   WeChatInfo    = 2,
   LabelList     = 3,
   ScanStatus    = 4,
+  RoomList      = 7,
+  ContactOrRoom = 182,
 }

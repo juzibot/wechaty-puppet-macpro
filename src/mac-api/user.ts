@@ -62,24 +62,17 @@ export default class MacproUser {
   }
 
   // 登出微信
-  public logoutWeChat = async (account: string): Promise<RequestStatus> => {
+  public logoutWeChat = async (account: string): Promise<void> => {
     log.silly(PRE, `logoutWeChat(${account})`)
 
     const data = {
       my_account: account,
     }
 
-    const res = await this.requestClient.request({
+    await this.requestClient.request({
       apiName: 'logoutWeixin',
       data,
     })
-    log.silly(PRE, `res : ${JSON.stringify(res)}`)
-
-    if (res.code === RequestStatus.Success) {
-      return RequestStatus.Success
-    } else {
-      throw new Error('logout wechat failed.')
-    }
   }
 
   // 添加好友

@@ -1,5 +1,5 @@
 import { log } from '../config'
-import { GrpcRoomPayload, RequestStatus, GrpcRoomDetailInfo, MacproRoomMemberPayload } from '../schemas'
+import { GrpcRoomPayload, RequestStatus, GrpcRoomDetailInfo, MacproRoomMemberPayload, MacproRoomPayload } from '../schemas'
 import { RequestClient } from '../utils/request'
 
 const PRE = 'MacproRoom'
@@ -30,6 +30,27 @@ export default class MacproRoom {
     if (callbacks) {
       callbacks.map(cb => cb(qrcode))
       delete this.roomQrcodeCallbackMap[roomId]
+    }
+  }
+
+  private roomCallbackMap?: { [roomId: string]: Array<(room: MacproRoomPayload) => void> } = {}
+
+  public pushRoomCallback (roomId: string, callback: (room: MacproRoomPayload) => void) {
+    if (!this.roomCallbackMap) {
+      throw new Error(`no roomCallbackMap`)
+    }
+    this.roomCallbackMap[roomId] = []
+    this.roomCallbackMap[roomId].push(callback)
+  }
+
+  public resolveRoomCallback (roomId: string, room: MacproRoomPayload) {
+    if (!this.roomCallbackMap) {
+      throw new Error(`no roomCallbackMap`)
+    }
+    const callbacks = this.roomCallbackMap[roomId] && this.roomCallbackMap[roomId]
+    if (callbacks) {
+      callbacks.map(cb => cb(room))
+      delete this.roomCallbackMap[roomId]
     }
   }
 
@@ -93,8 +114,24 @@ export default class MacproRoom {
     return res
   }
 
+  // 获取微信群列表
+  public syncRoomList = async (loginId: string): Promise<GrpcRoomPayload[]> => {
+    log.verbose(PRE, `roomList(${loginId})`)
+
+    const data = {
+      my_account: loginId,
+      type: 1,
+    }
+
+    const res = await this.requestClient.request({
+      apiName: 'syncRoomList',
+      data,
+    })
+    return res
+  }
+
   // 获取微信群成员列表
-  public roomMember = async (loginId: string, roomId: string): Promise<RequestStatus> => {
+  public roomMember = async (loginId: string, roomId: string): Promise<void> => {
     log.verbose(PRE, `roomMember(${loginId}, ${roomId})`)
 
     const data = {
@@ -107,11 +144,6 @@ export default class MacproRoom {
       data,
     })
     log.silly(PRE, `message : ${JSON.stringify(res)}`)
-    if (res.code === RequestStatus.Success) {
-      return RequestStatus.Success
-    } else {
-      return RequestStatus.Fail
-    }
   }
 
   public roomDetailInfo = async (loginId: string, roomId: string): Promise<GrpcRoomDetailInfo> => {
@@ -127,6 +159,20 @@ export default class MacproRoom {
       data,
     })
     return res
+  }
+
+  public syncRoomDetailInfo = async (loginId: string, roomId: string): Promise<void> => {
+    log.verbose(PRE, `syncRoomDetailInfo(${loginId}, ${roomId})`)
+
+    const data = {
+      g_number: roomId,
+      my_account: loginId,
+    }
+
+    await this.requestClient.request({
+      apiName: 'syncRoom',
+      data,
+    })
   }
 
   public createRoom = async (loginId: string, contactIdList: string[], topic?: string): Promise<RequestStatus> => {

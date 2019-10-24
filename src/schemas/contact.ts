@@ -20,6 +20,14 @@ export interface GrpcContactPayload {
   v1: string,
 }
 
+export interface GrpcContactInfo {
+  username: string,
+  alias: string,
+  nickname: string,
+  signature: string,
+  headurl: string,
+}
+
 export interface MacproContactPayload {
   accountAlias: string,
   account: string,

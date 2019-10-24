@@ -43,6 +43,21 @@ export default class MacproContact {
     return contactRawPayload
   }
 
+  public syncContactInfo = async (loginId: string, contactId: string): Promise<void> => {
+    log.verbose(PRE, `syncContactInfo(${loginId}, ${contactId})`)
+
+    const data = {
+      account: contactId,
+      my_account: loginId,
+    }
+
+    const res = await this.requestClient.request({
+      apiName: 'syncContactInfo',
+      data,
+    })
+    log.silly(PRE, `sync contact info from API : ${JSON.stringify(res)}`)
+  }
+
   // Set alias for contact
   public setAlias = async (aliasModel: AliasModel): Promise<RequestStatus> => {
     log.verbose(PRE, `setAlias()`)

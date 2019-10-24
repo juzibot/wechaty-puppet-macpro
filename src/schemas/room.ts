@@ -3,12 +3,13 @@
 import { ContactGender } from 'wechaty-puppet/dist/src/schemas/contact'
 
 export interface GrpcRoomPayload {
-  number: string,
-  name: string,
   author: string,
+  data: string,
+  list: string,
+  name: string,
+  number: string,
   thumb: string,
-  disturb: number,
-  chatroomData: any,
+  total: number,
 }
 
 export interface GrpcRoomDetailInfo {
@@ -41,6 +42,18 @@ export interface GrpcRoomQrcode {
   owner: string,
   qrcode: string,
   type: string,
+}
+
+export interface GrpcSyncRoomListBox {
+  info: string,
+  my_account: string,
+  type: number,
+}
+
+export interface GrpcSyncRoomList {
+  number: string,
+  name: string,
+  thumb: string,
 }
 
 export interface MacproRoomPayload {

@@ -10,13 +10,14 @@ import {
   MessageStream,
 } from './proto-ts/Macpro_pb'
 import { EventEmitter } from 'events'
-import { CallbackType } from '../schemas'
+import { CallbackType, GrpcRoomPayload } from '../schemas'
 import { DebounceQueue, ThrottleQueue } from 'rx-queue'
 import { Subscription } from 'rxjs'
+import { isRoomId } from '../pure-function-helpers'
 
 const PRE = 'GRPC_GATEWAY'
 
-export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-member' | 'room-create' | 'room-join' | 'room-qrcode' | 'reconnect' | 'invalid-token' | 'add-friend' | 'add-friend-before-accept' | 'heartbeat'
+export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-list' | 'room-member' | 'room-create' | 'room-join' | 'room-qrcode' | 'reconnect' | 'invalid-token' | 'add-friend' | 'del-friend' | 'add-friend-before-accept' | 'heartbeat' | 'contact-info' | 'room-info'
 
 export class GrpcGateway extends EventEmitter {
 
@@ -146,6 +147,10 @@ export class GrpcGateway extends EventEmitter {
   public emit (event: 'contact-list', data: string): boolean
   public emit (event: 'new-friend', data: string): boolean
   public emit (event: 'add-friend', data: string): boolean
+  public emit (event: 'del-friend', data: string): boolean
+  public emit (event: 'contact-info', data: string): boolean
+  public emit (event: 'room-info', data: string): boolean
+  public emit (event: 'room-list', data: string): boolean
   public emit (event: 'room-member', data: string): boolean
   public emit (event: 'room-create', data: string): boolean
   public emit (event: 'room-join', data: string): boolean
@@ -170,6 +175,10 @@ export class GrpcGateway extends EventEmitter {
   public on (event: 'contact-list', listener: ((data: string) => any)): this
   public on (event: 'new-friend', listener: ((data: string) => any)): this
   public on (event: 'add-friend', listener: ((data: string) => any)): this
+  public on (event: 'del-friend', listener: ((data: string) => any)): this
+  public on (event: 'contact-info', listener: ((data: string) => any)): this
+  public on (event: 'room-info', listener: ((data: string) => any)): this
+  public on (event: 'room-list', listener: ((data: string) => any)): this
   public on (event: 'room-member', listener: ((data: string) => any)): this
   public on (event: 'room-create', listener: ((data: string) => any)): this
   public on (event: 'room-join', listener: ((data: string) => any)): this
@@ -239,9 +248,28 @@ export class GrpcGateway extends EventEmitter {
         switch (data.getCode()) {
           case 'callback-send':
             const dataStr = data.getData()
-            const type = JSON.parse(dataStr).type
-            if (type === CallbackType.SendAddFriend) {
-              this.emit('add-friend-before-accept', data.getData())
+            const _data = JSON.parse(dataStr)
+            const type = _data.type
+            switch (Number(type)) {
+              case CallbackType.SendAddFriend:
+                this.emit('add-friend-before-accept', data.getData())
+                break
+              case CallbackType.RoomList:
+                this.emit('room-list', data.getData())
+                break
+              case CallbackType.ContactOrRoom:
+                const contactOrRoomStr = data.getData()
+                const contactOrRoom = JSON.parse(contactOrRoomStr)
+                const roomInfo: GrpcRoomPayload = JSON.parse(contactOrRoom.msg)
+                if (roomInfo && roomInfo.number && isRoomId(roomInfo.number)) {
+                  this.emit('room-info', contactOrRoom.msg)
+                } else {
+                  this.emit('contact-info', contactOrRoom.msg)
+                }
+                break
+              default:
+                log.warn(`Can not match any cases.`)
+                break
             }
             break
           case 'invalid-token':
@@ -282,6 +310,9 @@ export class GrpcGateway extends EventEmitter {
             break
           case 'new-friend':
             this.emit('new-friend', data.getData())
+            break
+          case 'del-friend':
+            this.emit('del-friend', data.getData())
             break
           case 'heartbeat':
             if (this.debounceQueue && this.throttleQueue) {

@@ -397,7 +397,7 @@ export class CacheManager {
 
     const contactTotal = this.cacheContactRawPayload.size
 
-    log.verbose(PRE, `initCache() inited ${contactTotal} Contacts,  cachedir="${baseDir}"`)
+    log.verbose(PRE, `initCache() inited ${await contactTotal} Contacts,  cachedir="${baseDir}"`)
   }
 
   private async releaseCache () {
