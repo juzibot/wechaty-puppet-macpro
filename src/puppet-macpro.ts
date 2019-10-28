@@ -249,9 +249,6 @@ export class PuppetMacpro extends Puppet {
       }
       this.loginStatus = true
 
-      await new Promise((resolve) => { // resolve the init server problem
-        setTimeout(resolve, 1000)
-      })
       await this.login(account)
 
     })
