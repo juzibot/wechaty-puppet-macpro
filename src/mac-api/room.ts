@@ -97,7 +97,10 @@ export default class MacproRoom {
     }
   }
 
-  // 获取微信群列表
+  /**
+   * @deprecated
+   * use syncRoomList instead
+   */
   public roomList = async (loginId: string, page?: number): Promise<GrpcRoomPayload[]> => {
     log.verbose(PRE, `roomList(${loginId}, ${page})`)
 
@@ -146,6 +149,10 @@ export default class MacproRoom {
     log.silly(PRE, `message : ${JSON.stringify(res)}`)
   }
 
+  /**
+   * @deprecated
+   * use syncRoomDetailInfo instead
+   */
   public roomDetailInfo = async (loginId: string, roomId: string): Promise<GrpcRoomDetailInfo> => {
     log.verbose(PRE, `roomDetailInfo(${loginId}, ${roomId})`)
 

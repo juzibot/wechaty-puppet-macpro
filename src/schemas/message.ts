@@ -36,11 +36,11 @@ export interface GrpcNewFriendMessagePayload {
 }
 
 export interface MacproMessagePayload {
-  my_account: string,
+  my_account: string, // MY weixin
   my_name: string,
-  my_account_alias?: string,
-  to_account: string,
-  to_account_alias?: string,
+  my_account_alias?: string, // MY wxid
+  to_account: string, // TO weixin
+  to_account_alias?: string, // TO wxid
   to_name: string,
   content: string,
   timestamp: number,

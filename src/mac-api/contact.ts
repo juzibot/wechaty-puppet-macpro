@@ -13,7 +13,11 @@ export default class MacproContact {
   constructor (requestClient: RequestClient) {
     this.requestClient = requestClient
   }
-  // Query contact list info
+
+  /**
+   * @deprecated
+   * use syncContactInfo instead
+   */
   public getContactInfo = async (loginId: string, contactId: string): Promise<MacproContactPayload> => {
     log.verbose(PRE, `getContactInfo(${loginId}, ${contactId})`)
 
