@@ -59,6 +59,9 @@ bot
       small: true
     });
   })
+  .on('login', (user) => {
+    console.log(`login user : ${user}`)
+  })
   .on('message', msg => {
     console.log(`msg : ${msg}`)
   })
