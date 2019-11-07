@@ -1,4 +1,10 @@
 ## Changelog
+- version: 0.2.0
+  1. regard this version as latest
+
+- version: 0.1.131
+  1. invite member to room which contains more than 40 members
+  2. fix the bug about can not send MiniProgram message
 
 - version: 0.1.130
   1. differ weixin and wxid for Contact
