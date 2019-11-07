@@ -487,9 +487,7 @@ export class PuppetMacpro extends Puppet {
       ======================================
       `)
 
-      this.emit('logout', this.selfId())
-      this.id = undefined
-      process.exit()
+      await this.stop()
     })
 
     this.grpcGateway.on('not-login', async (dataStr: string) => {
@@ -699,7 +697,7 @@ export class PuppetMacpro extends Puppet {
 
     this.state.off('pending')
 
-    await CacheManager.release()
+    // await CacheManager.release() // TODO: flash-store bug
     await this.grpcGateway.stop()
     this.grpcGateway.removeAllListeners()
 
@@ -1559,38 +1557,14 @@ export class PuppetMacpro extends Puppet {
     if (accountId === '') {
       throw new Error(`can not get accountId for ADD MEMBER to ROOM : ${contactId}`)
     }
-    const res = await this.room.roomAdd(this.selfId(), roomId, accountId)
+    const room = await this.roomRawPayload(roomId)
+    const roomMemberNum = room.members && room.members.length
 
-    if (res === RequestStatus.Fail) {
-      await this.room.roomInvite(this.selfId(), roomId, accountId)
+    if (roomMemberNum < 40) {
+      await this.room.roomAdd(this.selfId(), roomId, accountId)
     } else {
-      if (!this.cacheManager) {
-        throw new Error(`no cacheManager`)
-      }
-      const contact = await this.cacheManager.getContact(contactId)
-      if (!contact) {
-        throw new Error(`can not find contact by id: ${contactId} in contact cache manager`)
-      }
-      const member: MacproRoomMemberPayload = {
-        account: contact.account,
-        accountAlias: contact.accountAlias,
-        area: contact.area,
-        description: contact.description,
-        disturb: contact.disturb,
-        formName: contact.formName,
-        name: contact.name,
-        sex: contact.sex,
-        thumb: contact.thumb,
-        v1: contact.v1,
-      }
-      const roomMembers = await this.cacheManager.getRoomMember(roomId)
-      if (!roomMembers) {
-        throw new Error(`can not get room member from cache by roomId: ${roomId}`)
-      }
-      roomMembers[contactId] = member
-      await this.cacheManager.setRoomMember(roomId, roomMembers)
+      await this.room.roomInvite(this.selfId(), roomId, accountId)
     }
-
   }
 
   private async getAccountId (id: string): Promise<string> {

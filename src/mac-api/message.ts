@@ -1,6 +1,7 @@
 import { log } from '../config'
 import { RequestStatus, MacproMessageType, MiniProgram, MacproUrlLink } from '../schemas'
 import { RequestClient } from '../utils/request'
+import { isRoomId } from '../pure-function-helpers'
 
 const PRE = 'MacproMessage'
 
@@ -96,7 +97,7 @@ export default class MacproMessage {
       thumb_url: miniProgram.thumb_url || '',
       title: miniProgram.title,
       to_account: miniProgram.to_account,
-      type: miniProgram.type || 1,
+      type: isRoomId(miniProgram.to_account) ? 2 : 1,
     }
 
     const res = await this.requestClient.request({

@@ -100,7 +100,11 @@ export class GrpcGateway extends EventEmitter {
     }
 
     try {
+      log.silly(`token : ${this.token}`)
       const result = await this._request(request)
+      if (!result) {
+        throw new Error(`can not get result by api name: ${apiName}`)
+      }
       const resData = JSON.parse(result.getData())
       log.silly(PRE, `
       ===============================================================
