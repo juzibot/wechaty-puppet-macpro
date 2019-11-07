@@ -224,10 +224,10 @@ export class PuppetMacpro extends Puppet {
       login data : ${util.inspect(data)}
       ========================================
       `)
-      const wxid = data.account_alias
+      const account = data.account
 
       log.verbose(PRE, `init cache manager`)
-      await CacheManager.init(wxid)
+      await CacheManager.init(account)
       this.cacheManager = CacheManager.Instance
 
       const selfPayload: MacproContactPayload = {
@@ -242,19 +242,14 @@ export class PuppetMacpro extends Puppet {
         thumb: data.thumb,
         v1: '',
       }
-      await this.cacheManager.setContact(selfPayload.accountAlias, selfPayload)
-      if (data.account_alias) {
-        await this.cacheManager.setAccountWXID(selfPayload.account, selfPayload.accountAlias)
-      }
+      await this.cacheManager.setContact(selfPayload.account, selfPayload)
+
       if (!this.loginStatus) {
-        await super.login(data.account_alias)
+        await super.login(account)
       }
       this.loginStatus = true
 
-      await new Promise((resolve) => { // resolve the init server problem
-        setTimeout(resolve, 1000)
-      })
-      await this.login(wxid)
+      await this.login(account)
 
     })
 
@@ -591,7 +586,7 @@ export class PuppetMacpro extends Puppet {
     if (!contentType) {
       const contactPayload = newFriendMessageParser(messagePayload as any)
       if (this.cacheManager && contactPayload !== null) {
-        await this.saveContactRawPayload(contactPayload)
+        await this.cacheManager.setContact(contactPayload.account, contactPayload)
       }
       return
     }
@@ -605,64 +600,9 @@ export class PuppetMacpro extends Puppet {
       timestamp: messagePayload.send_time,
     }
 
-    // Cache message for future usage
     this.cacheMacproMessagePayload.set(messageId, payload)
 
-    /**
-     * Save account and account_alias info into contact
-     */
-    if (this.cacheManager && payload.to_account) {
-      if (payload.to_account_alias) { // to_account 表示微信号 to_account_alias 表示wxid
-        const wxid = payload.to_account_alias
-        const cacheContact = await this.cacheManager.getContact(wxid)
-        if (cacheContact) {
-          cacheContact.accountAlias = wxid
-          cacheContact.account = payload.to_account
-          await this.cacheManager.setContact(wxid, cacheContact)
-        } else {
-          const contact: MacproContactPayload = {
-            account: payload.to_account,
-            accountAlias: wxid,
-            area: '',
-            description: '',
-            disturb: '',
-            formName: payload.to_name,
-            name: payload.to_name,
-            sex: ContactGender.Unknown,
-            thumb: '',
-            v1: '',
-          }
-          await this.cacheManager.setContact(wxid, contact)
-        }
-        await this.cacheManager.setAccountWXID(payload.to_account, payload.to_account_alias)
-      } else { // to_account 表示 wxid
-        const wxid = payload.to_account
-        const cacheContact = await this.cacheManager.getContact(wxid)
-        if (cacheContact) {
-          cacheContact.accountAlias = wxid
-          cacheContact.account = wxid
-          await this.cacheManager.setContact(wxid, cacheContact)
-        } else {
-          const contact: MacproContactPayload = {
-            account: wxid,
-            accountAlias: wxid,
-            area: '',
-            description: '',
-            disturb: '',
-            formName: payload.to_name,
-            name: payload.to_name,
-            sex: ContactGender.Unknown,
-            thumb: '',
-            v1: '',
-          }
-          await this.cacheManager.setContact(wxid, contact)
-        }
-      }
-    }
-
-    const messageType = payload.content_type
-
-    switch (messageType) {
+    switch (payload.content_type) {
 
       case MacproMessageType.Text:
         const textEventMatches = await Promise.all([
@@ -722,10 +662,11 @@ export class PuppetMacpro extends Puppet {
 
     const contactListInfo: ContactList = JSON.parse(data)
     const { currentPage, total, info } = contactListInfo
+
     await Promise.all(info.map(async (_contact: GrpcContactPayload) => {
       const contact: MacproContactPayload = {
         account: _contact.account,
-        accountAlias: _contact.account_alias || _contact.account,
+        accountAlias: _contact.account_alias || _contact.account, // weixin and wxid are the same string
         area: _contact.area,
         description: _contact.description,
         disturb: _contact.disturb,
@@ -739,7 +680,7 @@ export class PuppetMacpro extends Puppet {
       if (!this.cacheManager) {
         throw CacheManageError('setContactToCache()')
       }
-      await this.saveContactRawPayload(contact)
+      await this.cacheManager.setContact(contact.account, contact)
     }))
     if (currentPage * 100 > total) {
       log.verbose(PRE, `contact data loaded. contact length: ${info.length}`)
@@ -811,46 +752,21 @@ export class PuppetMacpro extends Puppet {
     }
 
     let rawPayload = await this.cacheManager.getContact(id)
-    if (!rawPayload) {
-      const wxid = await this.cacheManager.getAccountWXID(id)
-      if (wxid) {
-        rawPayload = await this.cacheManager.getContact(wxid)
-      }
-    }
 
     if (!rawPayload) {
-      const accountId = await this.getAccountId(id)
-      if (accountId) {
-        // TODO: sync contact for contact cache
-        await this.contact.syncContactInfo(this.selfId(), id)
-      }
+      await this.contact.syncContactInfo(this.selfId(), id)
       log.silly(PRE, `contact rawPayload from API : ${util.inspect(rawPayload)}`)
+
+      // TODO: Polling for search contact from cache
+      await new Promise((resolve) => {
+        setTimeout(resolve, 1000)
+      })
+      rawPayload = await this.cacheManager.getContact(id)
       if (!rawPayload) {
-        throw new Error(`can not find contact by wxid : ${id}`)
+        throw new Error(`can not find contact by id : ${id}`)
       }
     }
     return rawPayload
-  }
-
-  private async saveContactRawPayload (rawPayload: MacproContactPayload) {
-    if (!this.cacheManager) {
-      throw CacheManageError('saveContactRawPayload()')
-    }
-    if (rawPayload.accountAlias) {
-      await this.cacheManager.setContact(rawPayload.accountAlias, rawPayload)
-      if (rawPayload.account && rawPayload.account !== rawPayload.accountAlias) {
-        await this.cacheManager.setAccountWXID(rawPayload.account, rawPayload.accountAlias)
-      }
-    } else if (rawPayload.account) {
-      await this.cacheManager.setContact(rawPayload.account, rawPayload)
-    } else {
-      log.silly(PRE, `
-      ============================================================
-      bad raw payload : ${util.inspect(rawPayload)}
-      ============================================================
-      `)
-      throw new Error(`bad raw payload`)
-    }
   }
 
   public async contactRawPayloadParser (rawPayload: MacproContactPayload): Promise<ContactPayload> {
@@ -863,7 +779,7 @@ export class PuppetMacpro extends Puppet {
       city      : rawPayload.area,
       friend    : isStrangerV1(rawPayload.v1),
       gender    : rawPayload.sex,
-      id        : rawPayload.accountAlias || rawPayload.account,
+      id        : rawPayload.accountAlias,
       name      : rawPayload.name,
       province  : rawPayload.area,
       signature : rawPayload.description,
@@ -1613,13 +1529,8 @@ export class PuppetMacpro extends Puppet {
       if (!this.cacheManager) {
         throw CacheManageError('convertCreateRoom()')
       }
-      const wxid = await this.cacheManager.getAccountWXID(contactId)
       let contact: MacproContactPayload | undefined
-      if (!wxid) {
-        contact = await this.cacheManager.getContact(contactId)
-      } else {
-        contact = await this.cacheManager.getContact(wxid)
-      }
+      contact = await this.cacheManager.getContact(contactId)
       if (contact) {
         members.push(contact)
       } else {

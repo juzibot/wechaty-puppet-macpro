@@ -46,6 +46,7 @@ export default class MacproUser {
   public getWeChatQRCode = async () => {
     log.silly(PRE, `getWeChatQRCode()`)
     let data = {
+      // autoadd: 2, // TODO: 自动通过好友需要配置该参数，该功能还需要调整
       extend: this.token,
     }
 
