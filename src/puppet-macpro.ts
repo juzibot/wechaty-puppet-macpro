@@ -105,6 +105,13 @@ import { roomTopicEventMessageParser } from './pure-function-helpers/room-event-
 import { messageUrlPayloadParser } from './pure-function-helpers/message-url-payload-parser'
 
 const PRE = 'PUPPET_MACPRO'
+const MEMORY_SLOT_NAME = 'WECHATY_PUPPET_MACPRO'
+
+export interface MacproMemorySlot {
+  taskId   : string,
+  userName : string,
+  wxid     : string,
+}
 
 export class PuppetMacpro extends Puppet {
 
@@ -130,6 +137,8 @@ export class PuppetMacpro extends Puppet {
 
   private apiQueue: DelayQueueExecutor
 
+  private memorySlot: MacproMemorySlot
+
   private addFriendCB: {[id: string]: any} = {}
 
   private reconnectThrottleQueue: ThrottleQueue
@@ -149,6 +158,12 @@ export class PuppetMacpro extends Puppet {
     }
     this.loginStatus = false
     this.cacheMacproMessagePayload = new LRU<string, MacproMessagePayload>(lruOptions)
+
+    this.memorySlot = {
+      taskId: '',
+      userName: '',
+      wxid: '',
+    }
 
     const token = options.token || macproToken()
     if (token) {
@@ -249,8 +264,48 @@ export class PuppetMacpro extends Puppet {
       }
       this.loginStatus = true
 
+      if (this.memory) {
+        this.memorySlot = {
+          taskId: data.task_id,
+          userName: data.account,
+          wxid: data.account_alias,
+        }
+        log.silly(PRE, `name: ${this.options.name}, memory slot : ${util.inspect(this.memorySlot)}`)
+        await this.memory.set(MEMORY_SLOT_NAME, this.memorySlot)
+        await this.memory.save()
+      }
+
       await this.login(account)
 
+    })
+
+    this.grpcGateway.on('logout', async () => {
+      await this.stop()
+      log.info(PRE, `
+      ======================================
+                 LOGOUT SUCCESS
+      ======================================
+      `)
+      this.emit('logout', this.selfId()) // TODO: need to emit logout event to wechaty
+    })
+
+    this.grpcGateway.on('not-login', async (dataStr: string) => {
+      log.verbose(PRE, `
+      ======================================
+               grpc on not-login
+      ======================================
+      `)
+      if (this.memory) {
+        const slot = await this.memory.get(MEMORY_SLOT_NAME)
+        log.silly(PRE, `slot : ${slot.userName}, data str : ${dataStr}`)
+        if (slot.userName) {
+          await this.user.getWeChatQRCode(slot.userName)
+        } else {
+          await this.user.getWeChatQRCode()
+        }
+      } else {
+        await this.user.getWeChatQRCode()
+      }
     })
 
     this.grpcGateway.on('message', data => this.onProcessMessage(JSON.parse(data)))
@@ -478,27 +533,6 @@ export class PuppetMacpro extends Puppet {
       })
 
       this.room.resolveRoomMemberCallback(members[0] && members[0].number, macproMembers)
-    })
-
-    this.grpcGateway.on('logout', async () => {
-      log.info(PRE, `
-      ======================================
-                 LOGOUT SUCCESS
-      ======================================
-      `)
-
-      await this.stop()
-    })
-
-    this.grpcGateway.on('not-login', async (dataStr: string) => {
-      log.verbose(PRE, `
-      ======================================
-               grpc on not-login
-      ======================================
-      `)
-      log.silly(PRE, `dataStr : ${util.inspect(dataStr)}`)
-
-      await this.user.getWeChatQRCode()
     })
 
     this.grpcGateway.on('new-friend', async (dataStr: string) => {

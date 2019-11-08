@@ -6,9 +6,5 @@ export interface GrpcLoginInfo {
   name: string,
   thumb: string,
   extend: string,
-}
-
-export interface AreaInfo {
-  id: number,
-  area_name: string,
+  task_id: string,
 }
