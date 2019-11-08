@@ -1,4 +1,11 @@
 ## Changelog
+- version: 0.2.2
+  1. add memory card to save user info, and login without scan qrcode except first time
+  2. add heartbeat for bot off line
+
+- version: 0.2.1
+  1. update the readme doc
+
 - version: 0.2.0
   1. regard this version as latest
 

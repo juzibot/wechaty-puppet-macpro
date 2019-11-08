@@ -24,7 +24,7 @@ export class GrpcGateway extends EventEmitter {
   private token: string
   private endpoint: string
   private client: MacproRequestClient
-
+  private heartbeatTime: number
   private debounceQueue?: DebounceQueue
   private debounceQueueSubscription?: Subscription
   private throttleQueue?: ThrottleQueue
@@ -35,7 +35,7 @@ export class GrpcGateway extends EventEmitter {
     this.endpoint = endpoint
     this.token = token
     this.client = new MacproRequestClient(this.endpoint, grpc.credentials.createInsecure())
-
+    this.heartbeatTime = Date.now()
     this.debounceQueue = new DebounceQueue(30 * 1000)
     this.debounceQueueSubscription = this.debounceQueue.subscribe(async () => {
       try {
@@ -324,9 +324,20 @@ export class GrpcGateway extends EventEmitter {
               this.throttleQueue.next(data)
             }
             break
+          case 'server-heartbeat':
+            const accountStr = data.getData()
+            const accountData = JSON.parse(accountStr)
+            const account = accountData.account
+            const now = Date.now()
+            log.silly(`now : ${now}, this.heartbeatTime : ${this.heartbeatTime}, account : ${accountStr}`)
+            if ((this.heartbeatTime - now) > 90 * 1000) {
+              this.emit('logout', account)
+            } else {
+              this.heartbeatTime = now
+            }
+            break
           default:
             log.error(PRE, `Can not get the notify`)
-            throw new Error(`can not get the notify`)
         }
       })
     } catch (err) {

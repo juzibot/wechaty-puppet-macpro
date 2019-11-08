@@ -1,5 +1,5 @@
 import { RequestClient } from '../utils/request'
-import { RequestStatus, AreaInfo } from '../schemas'
+import { RequestStatus } from '../schemas'
 import { log } from '../config'
 
 const PRE = 'MAC_API_USER'
@@ -14,26 +14,6 @@ export default class MacproUser {
     this.requestClient = requestClient
   }
 
-  // 获取用户登录基本信息
-  public getUserArea = async () => {
-    log.silly(PRE, `getUserArea()`)
-
-    const res = await this.requestClient.request({
-      apiName: 'getUserArea',
-    })
-    let areaId: number = 0
-    if (res.length === 1) {
-      areaId = res[0].id
-    } else {
-      res.map((data: AreaInfo) => {
-        if (data.area_name.indexOf('首次登陆') !== -1) {
-          areaId = data.id
-        }
-      })
-    }
-    return areaId
-  }
-
   public heartbeat = async () => {
     log.silly(PRE, `heartbeat()`)
 
@@ -43,13 +23,15 @@ export default class MacproUser {
   }
 
   // 获取微信登录二维码
-  public getWeChatQRCode = async () => {
-    log.silly(PRE, `getWeChatQRCode()`)
+  public getWeChatQRCode = async (userName?: string) => {
+    log.silly(PRE, `getWeChatQRCode(${userName || 'first login'})`)
     let data = {
       autoadd: 2, // TODO: auto accept friend, need to optimize
       extend: this.token,
     }
-
+    if (userName) {
+      Object.assign(data, { account: userName })
+    }
     const res = await this.requestClient.request({
       apiName: 'loginScanQRCode',
       data,
