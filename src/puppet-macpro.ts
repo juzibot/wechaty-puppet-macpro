@@ -1249,12 +1249,7 @@ export class PuppetMacpro extends Puppet {
         receiver,
         await this.messageMiniProgram(messageId)
       )
-    } else if (payload.type === MessageType.Video) {
-      throw new Error(`not support`)
-    } else if (
-      payload.type === MessageType.Attachment
-      || payload.type === MessageType.ChatHistory
-    ) {
+    } else if (payload.type === MessageType.ChatHistory) {
       throw new Error(`not support`)
     } else {
       await this.messageSendFile(
