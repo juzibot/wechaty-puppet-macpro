@@ -270,7 +270,7 @@ export class PuppetMacpro extends Puppet {
           userName: data.account,
           wxid: data.account_alias,
         }
-        log.silly(PRE, `name: ${this.options.name}, memory slot : ${util.inspect(this.memorySlot)}`)
+        log.silly(PRE, `memory slot : ${util.inspect(this.memorySlot)}`)
         await this.memory.set(MEMORY_SLOT_NAME, this.memorySlot)
         await this.memory.save()
       }
@@ -280,13 +280,14 @@ export class PuppetMacpro extends Puppet {
     })
 
     this.grpcGateway.on('logout', async () => {
-      await this.stop()
+      // await this.stop()
       log.info(PRE, `
       ======================================
                  LOGOUT SUCCESS
       ======================================
       `)
       this.emit('logout', this.selfId()) // TODO: need to emit logout event to wechaty
+      this.emit('reset', 'reset when received logout event.')
     })
 
     this.grpcGateway.on('not-login', async (dataStr: string) => {
@@ -297,8 +298,8 @@ export class PuppetMacpro extends Puppet {
       `)
       if (this.memory) {
         const slot = await this.memory.get(MEMORY_SLOT_NAME)
-        log.silly(PRE, `slot : ${slot.userName}, data str : ${dataStr}`)
-        if (slot.userName) {
+        if (slot && slot.userName) {
+          log.silly(PRE, `slot : ${slot.userName}, data str : ${dataStr}`)
           await this.user.getWeChatQRCode(slot.userName)
         } else {
           await this.user.getWeChatQRCode()
@@ -963,6 +964,7 @@ export class PuppetMacpro extends Puppet {
         await this.message.sendMessage(this.selfId(), contactIdOrRoomId!, fileUrl, MacproMessageType.Image)
         break
       case '.mp4':
+      case 'video/mp4':
         await this.message.sendMessage(this.selfId(), contactIdOrRoomId!, fileUrl, MacproMessageType.Video)
         break
       default:
@@ -1194,21 +1196,22 @@ export class PuppetMacpro extends Puppet {
 
     const contactIdOrRoomId =  receiver.roomId || receiver.contactId
     const {
-      username, // 小程序ID
-      // appid, // 小程序关联的微信公众号ID
+      // username, // UNKNOW
+      appid, // 小程序关联的微信公众号ID
       title,
-      pagepath,
+      pagePath,
       description,
-      thumbnailurl,
+      thumbUrl,
+      thumbKey,
     } = miniProgramPayload
 
     const _miniProgram: MiniProgram = {
-      app_name: username!,
+      app_name: appid! + '@app',
       describe: description,
       my_account: this.selfId(),
-      page_path: pagepath,
-      thumb_key: '',
-      thumb_url: thumbnailurl,
+      page_path: pagePath,
+      thumb_key: thumbKey,
+      thumb_url: thumbUrl,
       title: title!,
       to_account: contactIdOrRoomId!,
     }

@@ -99,13 +99,16 @@ export class GrpcGateway extends EventEmitter {
       request.setData(JSON.stringify(data))
     }
 
+    const result = await this._request(request)
+    if (!result) {
+      throw new Error(`can not get result by api name: ${apiName}`)
+    }
+    if (result.getToken() !== this.token) {
+      throw new Error(`the token are different, be careful with the data`)
+    }
+    const resDataStr = result.getData()
     try {
-      log.silly(`token : ${this.token}`)
-      const result = await this._request(request)
-      if (!result) {
-        throw new Error(`can not get result by api name: ${apiName}`)
-      }
-      const resData = JSON.parse(result.getData())
+      const resData = JSON.parse(resDataStr)
       log.silly(PRE, `
       ===============================================================
       API Name : ${apiName}
@@ -113,9 +116,6 @@ export class GrpcGateway extends EventEmitter {
       Response data : ${JSON.stringify(resData.code || resData)}
       ===============================================================
       `)
-      if (result.getToken() !== this.token) {
-        throw new Error(`the token are different, be careful with the data`)
-      }
       if (JSON.stringify(resData.code) === '1') {
         return resData.data || resData
       } else {
@@ -337,6 +337,8 @@ export class GrpcGateway extends EventEmitter {
             }
             break
           default:
+            const code = data.getCode()
+            log.silly(`the default code : ${code}`)
             log.error(PRE, `Can not get the notify`)
         }
       })
