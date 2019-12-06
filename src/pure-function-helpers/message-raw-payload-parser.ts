@@ -80,7 +80,7 @@ export async function messageRawPayloadParser (
 
   } else {
 
-    fromId = rawPayload.to_account
+    fromId = rawPayload.to_account_alias || rawPayload.to_account
 
   }
 
