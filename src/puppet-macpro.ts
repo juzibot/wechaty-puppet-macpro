@@ -260,7 +260,7 @@ export class PuppetMacpro extends Puppet {
       await this.cacheManager.setContact(selfPayload.account, selfPayload)
 
       if (!this.loginStatus) {
-        await super.login(account)
+        await super.login(selfPayload.accountAlias)
       }
       this.loginStatus = true
 
@@ -373,8 +373,9 @@ export class PuppetMacpro extends Puppet {
       if (this.cacheManager) {
         const cacheRoom = await this.cacheManager.getRoom(roomDetailInfo.number)
         if (cacheRoom) {
-          // step 1: get the owner of this room
+          // step 1: get the owner and thumb of this room
           cacheRoom.owner = roomDetailInfo.author
+          cacheRoom.thumb = roomDetailInfo.thumb
           // step 2: get the members of this room
           await this.room.roomMember(this.selfId(), roomDetailInfo.number)
 
@@ -630,7 +631,7 @@ export class PuppetMacpro extends Puppet {
       ...messagePayload,
       content_type: contentType,
       messageId,
-      timestamp: messagePayload.send_time,
+      timestamp: messagePayload.send_time || (Date.now() / 1000),
     }
 
     this.cacheMacproMessagePayload.set(messageId, payload)
@@ -697,6 +698,9 @@ export class PuppetMacpro extends Puppet {
     const { currentPage, total, info } = contactListInfo
 
     await Promise.all(info.map(async (_contact: GrpcContactPayload) => {
+      if (_contact.account === 'Soul001001') {
+        log.silly(`contact area data : ${_contact.area}`)
+      }
       const contact: MacproContactPayload = {
         account: _contact.account,
         accountAlias: _contact.account_alias || _contact.account, // weixin and wxid are the same string
@@ -1357,8 +1361,8 @@ export class PuppetMacpro extends Puppet {
   public async roomRawPayloadParser (
     rawPayload: MacproRoomPayload,
   ): Promise<RoomPayload> {
-    log.verbose(PRE, 'roomRawPayloadParser(%s)', rawPayload)
-
+    log.verbose(PRE, 'roomRawPayloadParser()')
+    log.silly(`room raw payload data : ${JSON.stringify(rawPayload)}`)
     const payload: RoomPayload = {
       avatar: rawPayload.thumb,
       id : rawPayload.number,
