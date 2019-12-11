@@ -61,6 +61,7 @@ export class GrpcGateway extends EventEmitter {
         throw new Error(`no heartbeat response from grpc server`)
       }
     } catch (error) {
+      await new Promise(resolve => setTimeout(resolve, 5000))
       log.error(`can not get heartbeat from grpc server`)
       this.emit('reconnect')
     }
@@ -210,6 +211,8 @@ export class GrpcGateway extends EventEmitter {
     return this
   }
 
+  public async initGateway () {}
+
   public async notify (apiName: string, data?: any) {
     log.silly(PRE, `notify(${apiName}, ${data})`)
     const request = new RequestObject()
@@ -242,7 +245,7 @@ export class GrpcGateway extends EventEmitter {
       result.on('close', () => {
         log.error(PRE, 'grpc server close')
       })
-      result.on('data', (data: MessageStream) => {
+      result.on('data', async (data: MessageStream) => {
         log.silly(PRE, `event code :  ${data.getCode()}`)
 
         if (this.debounceQueue && this.throttleQueue) {
@@ -307,7 +310,8 @@ export class GrpcGateway extends EventEmitter {
             this.emit('message', data.getData())
             break
           case 'logout' :
-            this.emit('logout', data.getData())
+            log.warn(`Received logout event from server.`)
+            // this.emit('logout', data.getData())
             break
           case 'add-friend':
             this.emit('add-friend', data.getData())
@@ -318,23 +322,29 @@ export class GrpcGateway extends EventEmitter {
           case 'del-friend':
             this.emit('del-friend', data.getData())
             break
+          case 'heartbeat-logout':
+            this.emit('logout', '')
+            break
           case 'heartbeat':
+            /* const heartbeatdataStr = data.getData()
+            const heartbeatdata = JSON.parse(heartbeatdataStr)
+            if (heartbeatdata.data === 'logout') {
+              this.emit('logout', '')
+            } */
+            const now = Date.now()
+            if (now - this.heartbeatTime > 90 * 1000) {
+              this.heartbeatTime = NaN
+              await this.request('clearWeChatInfo')
+            }
             if (this.debounceQueue && this.throttleQueue) {
               this.debounceQueue.next(data)
               this.throttleQueue.next(data)
             }
             break
           case 'server-heartbeat':
-            const accountStr = data.getData()
-            const accountData = JSON.parse(accountStr)
-            const account = accountData.account
-            const now = Date.now()
-            log.silly(`now : ${now}, this.heartbeatTime : ${this.heartbeatTime}, account : ${accountStr}`)
-            if ((this.heartbeatTime - now) > 90 * 1000) {
-              this.emit('logout', account)
-            } else {
-              this.heartbeatTime = now
-            }
+            log.silly(PRE, `Set server heartbeat time.`)
+            const serverHeartbeatTime = Date.now()
+            this.heartbeatTime = serverHeartbeatTime
             break
           default:
             const code = data.getCode()
@@ -343,7 +353,8 @@ export class GrpcGateway extends EventEmitter {
         }
       })
     } catch (err) {
-      log.silly(PRE, `error : ${err}`)
+      await new Promise(resolve => setTimeout(resolve, 5000))
+      log.silly(PRE, `${err}`)
       this.emit('reconnect')
     }
   }

@@ -62,12 +62,12 @@ export async function messageRawPayloadParser (
    */
   if (rawPayload.type === MessageSendType.SELF_SENT) {
 
-    toId = rawPayload.to_account
+    toId = rawPayload.to_account_alias
 
   } else if (rawPayload.type === MessageSendType.CONTACT_SENT) {
     // TODO: if the message @someone, the toId should set to the mentioned contact id(?)
 
-    toId = rawPayload.my_account
+    toId = rawPayload.my_account_alias
 
   }
 
@@ -76,7 +76,7 @@ export async function messageRawPayloadParser (
    */
   if (rawPayload.type === MessageSendType.SELF_SENT) {
 
-    fromId = rawPayload.my_account
+    fromId = rawPayload.my_account_alias
 
   } else {
 

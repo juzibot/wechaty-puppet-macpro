@@ -247,7 +247,7 @@ export class PuppetMacpro extends Puppet {
 
       const selfPayload: MacproContactPayload = {
         account: data.account,
-        accountAlias: data.account_alias || data.account,
+        accountAlias: data.account_alias || data.account, // wxid
         area: '',
         description: '',
         disturb: '',
@@ -257,7 +257,7 @@ export class PuppetMacpro extends Puppet {
         thumb: data.thumb,
         v1: '',
       }
-      await this.cacheManager.setContact(selfPayload.account, selfPayload)
+      await this.cacheManager.setContact(selfPayload.accountAlias, selfPayload)
 
       if (!this.loginStatus) {
         await super.login(selfPayload.accountAlias)
@@ -280,7 +280,6 @@ export class PuppetMacpro extends Puppet {
     })
 
     this.grpcGateway.on('logout', async () => {
-      // await this.stop()
       log.info(PRE, `
       ======================================
                  LOGOUT SUCCESS
@@ -317,28 +316,22 @@ export class PuppetMacpro extends Puppet {
       log.verbose(PRE, `Sync contact detail info : ${data}`)
       const contactInfo: GrpcContactInfo = JSON.parse(data)
       if (this.cacheManager) {
-        const cacheContact = await this.cacheManager.getContact(contactInfo.username)
-        if (cacheContact) {
-          cacheContact.name = contactInfo.nickname
-          cacheContact.description = contactInfo.signature
-          cacheContact.thumb = contactInfo.headurl
-          cacheContact.accountAlias = contactInfo.alias
-          await this.cacheManager.setContact(contactInfo.username, cacheContact)
-        } else {
-          const contact: MacproContactPayload = {
-            account: contactInfo.username,
-            accountAlias: contactInfo.alias,
-            area: '',
-            description: contactInfo.signature,
-            disturb: '',
-            formName: '',
-            name: contactInfo.nickname,
-            sex: ContactGender.Unknown,
-            thumb: contactInfo.headurl,
-            v1: '',
-          }
-          await this.cacheManager.setContact(contactInfo.username, contact)
+        const callback = this.getCallback(contactInfo.username)
+        const contact: MacproContactPayload = {
+          account: contactInfo.alias || '',
+          accountAlias: contactInfo.username || contactInfo.alias, // wxid
+          area: '',
+          description: contactInfo.signature || '',
+          disturb: '',
+          formName: '',
+          name: contactInfo.nickname,
+          sex: ContactGender.Unknown,
+          thumb: contactInfo.headurl,
+          v1: '',
         }
+        await this.cacheManager.setContact(contact.accountAlias, contact)
+        callback(contact)
+        this.removeCallback(contactInfo.username)
       }
     })
 
@@ -346,7 +339,11 @@ export class PuppetMacpro extends Puppet {
       const _data: GrpcSyncRoomListBox = JSON.parse(data)
       const roomList: GrpcSyncRoomList[] = JSON.parse(_data.info)
       if (roomList && roomList.length === 0) {
-        throw new Error(`Can not load room list, pls restart`)
+        log.warn(`
+          This is a new account which login wechaty based on Mac protocal first time,
+          please add one room to Contacts or send message to one existed room for loading room data,
+          and then just restart the bot again.
+        `)
       }
       log.silly(PRE, `Sync room list, its length : ${roomList.length}`)
       await Promise.all(roomList.map(async (room) => {
@@ -468,7 +465,8 @@ export class PuppetMacpro extends Puppet {
           await this.cacheManager.setContact(_data.account, contact)
         }
       }
-      if (roomMembers && _data.type === RoomChangeState.LEAVE) {
+      // TODO: can not get room member account when the member been removed by bot, account = ''
+      /* if (roomMembers && _data.type === RoomChangeState.LEAVE) {
         const wxid = await this.getAccountId(_data.account)
         if (wxid === _data.my_account) { // if the bot been removed from this room, we should clear the cache of Room and RoomMember
           setTimeout(async () => {
@@ -485,7 +483,7 @@ export class PuppetMacpro extends Puppet {
             await this.cacheManager.setRoomMember(roomId, members)
           }
         }
-      }
+      } */
     })
 
     this.grpcGateway.on('room-member', async memberStr => {
@@ -557,10 +555,9 @@ export class PuppetMacpro extends Puppet {
       log.silly(PRE, `add-friend data : ${dataStr}`)
       const newContactBox = JSON.parse(dataStr)
       const newContact = JSON.parse(newContactBox.data)
-      log.silly(`new contact account : ${newContact.account}`)
       const contact: MacproContactPayload = {
         account: newContact.account,
-        accountAlias: '',
+        accountAlias: newContact.account_alias || newContact.account,
         area: newContact.area,
         description: '',
         disturb: '',
@@ -568,10 +565,10 @@ export class PuppetMacpro extends Puppet {
         name: newContact.name,
         sex: Number(newContact.sex) as ContactGender,
         thumb: newContact.thumb,
-        v1: `v1_${newContact.account}`,
+        v1: newContact.v1,
       }
       if (this.cacheManager) {
-        await this.cacheManager.setContact(newContact.account, contact)
+        await this.cacheManager.setContact(contact.accountAlias, contact)
       }
     })
 
@@ -583,7 +580,7 @@ export class PuppetMacpro extends Puppet {
 
     this.grpcGateway.on('add-friend-before-accept', (dataStr: string) => {
       // Friend request => Contact, Contact has not accepted
-      log.silly(PRE, `add-friend-before-accept data : ${dataStr}`)
+      log.silly(PRE, `add-friend-before-accept data : ${dataStr}`) // to_account -> WeChat account
 
       const data: AddFriendBeforeAccept = JSON.parse(dataStr)
       const phoneOrAccount = data.phone || data.to_name
@@ -669,19 +666,14 @@ export class PuppetMacpro extends Puppet {
         break
 
       case MacproMessageType.System:
-        const systemEventMatches = await Promise.all([
+        await Promise.all([
           this.onMacproMessageFriendshipEvent(payload),
           /* ----------------------------------------- */
           this.onMacproMessageRoomEventJoin(payload),
           this.onMacproMessageRoomEventLeave(payload),
           this.onMacproMessageRoomEventTopic(payload),
         ])
-        /**
-         * If no event matched above, then emit the message
-         */
-        if (!systemEventMatches.reduce((prev, cur) => prev || cur, false)) {
-          this.emit('message', messageId)
-        }
+        this.emit('message', messageId)
         break
 
       default:
@@ -698,9 +690,6 @@ export class PuppetMacpro extends Puppet {
     const { currentPage, total, info } = contactListInfo
 
     await Promise.all(info.map(async (_contact: GrpcContactPayload) => {
-      if (_contact.account === 'Soul001001') {
-        log.silly(`contact area data : ${_contact.area}`)
-      }
       const contact: MacproContactPayload = {
         account: _contact.account,
         accountAlias: _contact.account_alias || _contact.account, // weixin and wxid are the same string
@@ -717,7 +706,7 @@ export class PuppetMacpro extends Puppet {
       if (!this.cacheManager) {
         throw CacheManageError('setContactToCache()')
       }
-      await this.cacheManager.setContact(contact.account, contact)
+      await this.cacheManager.setContact(contact.accountAlias, contact)
     }))
     if (currentPage * 100 > total) {
       log.verbose(PRE, `contact data loaded. contact length: ${info.length}`)
@@ -736,7 +725,7 @@ export class PuppetMacpro extends Puppet {
 
     this.state.off('pending')
 
-    // await CacheManager.release() // TODO: flash-store bug
+    await CacheManager.release() // TODO: flash-store bug
     await this.grpcGateway.stop()
     this.grpcGateway.removeAllListeners()
 
@@ -748,9 +737,6 @@ export class PuppetMacpro extends Puppet {
     log.silly(PRE, 'logout()')
 
     await this.user.logoutWeChat(this.selfId())
-
-    this.emit('logout', this.selfId()) // be care we will throw above by logonoff() when this.user===undefined
-    this.id = undefined
   }
 
   /**
@@ -782,6 +768,17 @@ export class PuppetMacpro extends Puppet {
    * Contact
    *
    */
+  private poolMap: { [requestId: string]: (data: MacproContactPayload) => void } = {}
+  private pushCallbackToPool (requestId: string, callback: (data: MacproContactPayload) => void) {
+    this.poolMap[requestId] = callback
+  }
+  private getCallback (requestId: string) {
+    return this.poolMap[requestId]
+  }
+  private removeCallback (requestId: string) {
+    delete this.poolMap[requestId]
+  }
+
   public async contactRawPayload (id: string): Promise<MacproContactPayload> {
     log.verbose(PRE, 'contactRawPayload(%s)', id)
     if (!this.cacheManager) {
@@ -792,16 +789,12 @@ export class PuppetMacpro extends Puppet {
 
     if (!rawPayload) {
       await this.contact.syncContactInfo(this.selfId(), id)
-      log.silly(PRE, `contact rawPayload from API : ${util.inspect(rawPayload)}`)
 
-      // TODO: Polling for search contact from cache
-      await new Promise((resolve) => {
-        setTimeout(resolve, 1000)
+      return new Promise(resolve => {
+        this.pushCallbackToPool(id, (data: MacproContactPayload) => {
+          resolve(data)
+        })
       })
-      rawPayload = await this.cacheManager.getContact(id)
-      if (!rawPayload) {
-        throw new Error(`can not find contact by id : ${id}`)
-      }
     }
     return rawPayload
   }
@@ -1018,7 +1011,7 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async messageRawPayloadParser (rawPayload: MacproMessagePayload): Promise<MessagePayload> {
-    log.verbose(PRE, 'messagePayload(%s)', rawPayload)
+    log.verbose(PRE, 'messagePayload(%s)', JSON.stringify(rawPayload))
 
     const payload = await messageRawPayloadParser(rawPayload)
 

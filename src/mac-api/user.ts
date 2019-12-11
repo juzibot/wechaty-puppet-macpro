@@ -26,7 +26,6 @@ export default class MacproUser {
   public getWeChatQRCode = async (userName?: string) => {
     log.silly(PRE, `getWeChatQRCode(${userName || 'first login'})`)
     let data = {
-      autoadd: 2, // TODO: auto accept friend, need to optimize
       extend: this.token,
     }
     if (userName) {
