@@ -11,7 +11,7 @@ about: Create a bug report for a bug you found in wechaty-puppet-macpro
 1. Please run the following command and check whether the problem has been fixed：
 
 ```
-npm install wechaty-puppet-padlus@next
+npm install wechaty-puppet-macpro
 ```
 
 2. Please search in the issue first, and make sure your problem had not been reported before
