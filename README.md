@@ -2,48 +2,71 @@
 
 ## Notice
 
-1. wechaty-puppet-macpro is still in very Early Alpha Stage, please make sure you have the necessary engineering technics to deal with the bugs instead of just asking for support.
+1. wechaty-puppet-macpro is still in Early Alpha Stage, please make sure you have the necessary engineering technics to deal with the bugs instead of just asking for support.
 2. You are welcome to file an issue to reproduce the problem, if it is reproducible, we will fix that as soon as possible.
 3. If you need a stable version, please keep waiting until we release the stable one.
 
 ## Install
 
 ### 1. Init
+> check your `Node` version first
 
 ```js
-mkdir testPuppetMacpro
+node --version // v10.16.0 (BTW v10.0.0 < version < v11.0.0 is better)
+```
 
-npm init
+```js
+mkdir my-macpro-bot && cd my-macpro-bot
+
+npm init -y
 ```
 
 ### 2. Install the latest wechaty
 
 ```js
-npm install wechaty
+npm install wechaty@next
 ```
 
 ### 3. Install wechaty-puppet-macpro
 
-> Notice: wechaty-puppet-macpro still in alpha test period, so we keep updating the package, you should install the next packge by using `@next` until we release the stable package.
+> Notice: wechaty-puppet-macpro still in alpha test period, so we keep updating the package, you should install the latest packge by using `@latest` until we release the stable package.
 
 ```js
-npm install wechaty-puppet-macpro@next
+npm install wechaty-puppet-macpro
 ```
 
 ### 4. Install other dependency
+
+> There's no need to install `wechaty-puppet` in my-macpro-bot
 
 ```js
 npm install qrcode-terminal
 ```
 
+### 5. Re-Install all related package
+
+> If step 1~4 can not help you install successfully, please try this suggestion, otherwise just skip it please.
+
+```js
+rm -rf node_modules package-lock.json
+
+npm install
+```
+
+## Usage Notice
+1. Only need to scan qrcode at the first time to login the wechaty.
+2. If you logout the wechaty and please **wait for 90 seconds** and then restart the bot again.
+3. If your WeChat logout (*by WeChat App or API*), you can login without scan qrcode when you start the bot, just tap the `OK` button in WeChat App and your bot will login wechaty.
+
 ## Example
 
 ```js
-import { Wechaty      } from 'wechaty';
-import { PuppetMacpro } from 'wechaty-puppet-macpro';
-import { generate     } from 'qrcode-terminal';
+import { Wechaty      } from 'wechaty'
+import { PuppetMacpro } from 'wechaty-puppet-macpro'
+import { generate     } from 'qrcode-terminal'
 
-const token = 'your token';
+const token = 'your token'
+const name  = 'your-bot-name'
 
 const puppet = new PuppetMacpro({
   token,
@@ -51,13 +74,14 @@ const puppet = new PuppetMacpro({
 
 const bot = new Wechaty({
   puppet,
-});
+  name, // login without scan qrcode at next time, it will generate xxxx.memory-card.json and save login data.
+})
 
 bot
   .on('scan', (qrcode) => {
     generate(qrcode, {
       small: true
-    });
+    })
   })
   .on('login', (user) => {
     console.log(`login user : ${user}`)
@@ -68,7 +92,7 @@ bot
   .start()
 ```
 
-## Puppet Comparision
+## Puppet Comparison
 
 功能 | padpro | macpro | padplus
 ---|---|---|---
