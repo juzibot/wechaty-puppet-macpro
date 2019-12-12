@@ -16,7 +16,7 @@ export const macproToken = () => {
       Please set WECHATY_PUPPET_MACPRO_TOKEN then retry again.
 
     `)
-    throw new Error('You need a valid WECHATY_PUPPET_MACPRO_TOKEN to use PuppetMacpro')
+    // throw new Error('You need a valid WECHATY_PUPPET_MACPRO_TOKEN to use PuppetMacpro')
   }
   return token
 }

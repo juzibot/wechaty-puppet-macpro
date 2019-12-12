@@ -29,11 +29,13 @@ export class GrpcGateway extends EventEmitter {
   private debounceQueueSubscription?: Subscription
   private throttleQueue?: ThrottleQueue
   private throttleQueueSubscription?: Subscription
+  private hasLogout: boolean
 
   constructor (token: string, endpoint: string) {
     super()
     this.endpoint = endpoint
     this.token = token
+    this.hasLogout = false
     this.client = new MacproRequestClient(this.endpoint, grpc.credentials.createInsecure())
     this.heartbeatTime = Date.now()
     this.debounceQueue = new DebounceQueue(30 * 1000)
@@ -281,6 +283,12 @@ export class GrpcGateway extends EventEmitter {
             break
           case 'invalid-token':
             macproToken()
+            log.warn(`
+            ===================================================
+            This thread will been killed now.
+            ===================================================
+            `)
+            process.exit(0)
             break
           case 'not-login':
             this.emit('not-login', data.getData())
@@ -311,7 +319,10 @@ export class GrpcGateway extends EventEmitter {
             break
           case 'logout' :
             log.warn(`Received logout event from server.`)
-            // this.emit('logout', data.getData())
+            if (!this.hasLogout) {
+              this.emit('logout', data.getData())
+              this.hasLogout = true
+            }
             break
           case 'add-friend':
             this.emit('add-friend', data.getData())
@@ -323,14 +334,12 @@ export class GrpcGateway extends EventEmitter {
             this.emit('del-friend', data.getData())
             break
           case 'heartbeat-logout':
-            this.emit('logout', '')
+            if (!this.hasLogout) {
+              this.emit('logout', '')
+              this.hasLogout = true
+            }
             break
           case 'heartbeat':
-            /* const heartbeatdataStr = data.getData()
-            const heartbeatdata = JSON.parse(heartbeatdataStr)
-            if (heartbeatdata.data === 'logout') {
-              this.emit('logout', '')
-            } */
             const now = Date.now()
             if (now - this.heartbeatTime > 90 * 1000) {
               this.heartbeatTime = NaN
