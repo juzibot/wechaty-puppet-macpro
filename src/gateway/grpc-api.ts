@@ -1,3 +1,4 @@
+/* eslint no-unreachable: 0 */
 import grpc from 'grpc'
 import util from 'util'
 import { log, macproToken } from '../config'
@@ -315,6 +316,7 @@ export class GrpcGateway extends EventEmitter {
             ===================================================
             `)
             process.exit(0)
+            break
           case 'not-login':
             this.emit('not-login', data.getData())
             break

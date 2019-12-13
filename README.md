@@ -9,6 +9,7 @@
 ## Install
 
 ### 1. Init
+
 > check your `Node` version first
 
 ```js
@@ -54,6 +55,7 @@ npm install
 ```
 
 ## Usage Notice
+
 1. Only need to scan qrcode at the first time to login the wechaty.
 2. If you logout the wechaty and please **wait for 90 seconds** and then restart the bot again.
 3. If your WeChat logout (*by WeChat App or API*), you can login without scan qrcode when you start the bot, just tap the `OK` button in WeChat App and your bot will login wechaty.
