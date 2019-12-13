@@ -24,6 +24,7 @@ export class GrpcGateway extends EventEmitter {
   private token: string
   private endpoint: string
   private client: MacproRequestClient
+  private stream?: grpc.ClientReadableStream<ResponseObject>
   private heartbeatTime: number
   private debounceQueue?: DebounceQueue
   private debounceQueueSubscription?: Subscription
@@ -63,13 +64,18 @@ export class GrpcGateway extends EventEmitter {
         throw new Error(`no heartbeat response from grpc server`)
       }
     } catch (error) {
-      await new Promise(resolve => setTimeout(resolve, 5000))
       log.error(`can not get heartbeat from grpc server`)
       this.emit('reconnect')
     }
   }
 
   public async stop () {
+    log.silly(PRE, `stop()`)
+
+    if (this.stream) {
+      this.stream.destroy()
+      this.stream.removeAllListeners()
+    }
     this.client.close()
 
     if (!this.throttleQueueSubscription || !this.debounceQueueSubscription) {
@@ -213,8 +219,6 @@ export class GrpcGateway extends EventEmitter {
     return this
   }
 
-  public async initGateway () {}
-
   public async notify (apiName: string, data?: any) {
     log.silly(PRE, `notify(${apiName}, ${data})`)
     const request = new RequestObject()
@@ -226,9 +230,31 @@ export class GrpcGateway extends EventEmitter {
     }
 
     try {
-      const result = this.client.notify(request)
+      const channel = this.client.getChannel()
+      if (channel) {
+        await new Promise((resolve, reject) => {
+          channel.getConnectivityState(true)
+          const beforeState = channel.getConnectivityState(false)
+          channel.watchConnectivityState(beforeState, Date.now() + 5000, (err) => {
+            if (err) {
+              reject(new Error('Try to connect to server timeout.'))
+            } else {
+              const state = channel.getConnectivityState(false)
+              if (state !== grpc.connectivityState.READY) {
+                reject(new Error(`Failed to connect to server, state changed to ${state}`))
+              } else {
+                resolve()
+              }
+            }
+          })
+        })
+      } else {
+        throw new Error('No channel for grpc client.')
+      }
 
-      result.on('error', async (err: any) => {
+      const stream = this.client.notify(request)
+
+      stream.on('error', async (err: any) => {
         log.error(PRE, `GRPC SERVER ERROR.
         =====================================================================
         try to reconnect grpc server, waiting...
@@ -241,13 +267,13 @@ export class GrpcGateway extends EventEmitter {
           log.error(PRE, `stream error:`, util.inspect(err))
         }
       })
-      result.on('end', () => {
+      stream.on('end', () => {
         log.error(PRE, 'grpc server end.')
       })
-      result.on('close', () => {
+      stream.on('close', () => {
         log.error(PRE, 'grpc server close')
       })
-      result.on('data', async (data: MessageStream) => {
+      stream.on('data', async (data: MessageStream) => {
         log.silly(PRE, `event code :  ${data.getCode()}`)
 
         if (this.debounceQueue && this.throttleQueue) {
@@ -289,7 +315,6 @@ export class GrpcGateway extends EventEmitter {
             ===================================================
             `)
             process.exit(0)
-            break
           case 'not-login':
             this.emit('not-login', data.getData())
             break
@@ -361,6 +386,7 @@ export class GrpcGateway extends EventEmitter {
             log.error(PRE, `Can not get the notify`)
         }
       })
+      this.stream = stream
     } catch (err) {
       await new Promise(resolve => setTimeout(resolve, 5000))
       log.silly(PRE, `${err}`)

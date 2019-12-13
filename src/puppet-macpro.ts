@@ -135,6 +135,8 @@ export class PuppetMacpro extends Puppet {
 
   private room: MacproRoom
 
+  private token: string
+
   private apiQueue: DelayQueueExecutor
 
   private memorySlot: MacproMemorySlot
@@ -165,14 +167,15 @@ export class PuppetMacpro extends Puppet {
       wxid: '',
     }
 
-    const token = options.token || macproToken()
-    if (token) {
-      this.grpcGateway = new GrpcGateway(token, GRPC_ENDPOINT)
+    this.token = options.token || macproToken()
+    if (this.token) {
+      this.grpcGateway = new GrpcGateway(this.token, GRPC_ENDPOINT)
       this.requestClient = new RequestClient(this.grpcGateway)
       this.contact = new MacproContact(this.requestClient)
-      this.user = new MacproUser(token, this.requestClient)
+      this.user = new MacproUser(this.token, this.requestClient)
       this.message = new MacproMessage(this.requestClient)
       this.room = new MacproRoom(this.requestClient)
+
       const max = 0.05
       const min = 0.03
       this.apiQueue = new DelayQueueExecutor(Math.max(min, Math.random() * max) * 1000)
@@ -180,9 +183,16 @@ export class PuppetMacpro extends Puppet {
       this.reconnectThrottleQueue = new ThrottleQueue<string>(5000)
       this.reconnectThrottleQueue.subscribe(async reason => {
         log.silly('Puppet', 'constructor() reconnectThrottleQueue.subscribe() reason: %s', reason)
+        if (this.grpcGateway) {
+          this.grpcGateway.removeAllListeners()
+        }
+        delete this.requestClient
+        delete this.contact
+        delete this.user
+        delete this.message
+        delete this.room
 
-        await this.grpcGateway.notify('getLoginUserInfo')
-
+        await this.start()
       })
     } else {
       log.error(PRE, `can not get token info from options for start grpc gateway.`)
@@ -195,9 +205,23 @@ export class PuppetMacpro extends Puppet {
 
     this.state.on('pending')
 
+    try {
+      this.grpcGateway = new GrpcGateway(this.token, GRPC_ENDPOINT)
+      await this.grpcGateway.notify('getLoginUserInfo')
+    } catch (error) {
+      log.info(`start grpc gateway failed for reason: ${error}, retry start in 5 seconds.`)
+      await new Promise(resolve => setTimeout(resolve, 5000))
+      await this.start()
+      return
+    }
+
     await this.startGrpcListener()
 
-    await this.grpcGateway.notify('getLoginUserInfo')
+    this.requestClient = new RequestClient(this.grpcGateway)
+    this.contact = new MacproContact(this.requestClient)
+    this.user = new MacproUser(this.token, this.requestClient)
+    this.message = new MacproMessage(this.requestClient)
+    this.room = new MacproRoom(this.requestClient)
 
     this.state.on(true)
   }
