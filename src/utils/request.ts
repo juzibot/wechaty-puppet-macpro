@@ -45,7 +45,6 @@ export class RequestClient {
         if (err) {
           reject(err)
         } else {
-          log.silly(PRE, `err : ${err}, data : ${JSON.stringify(data)}`)
           resolve(data)
         }
       })

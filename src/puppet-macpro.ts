@@ -237,18 +237,16 @@ export class PuppetMacpro extends Puppet {
       })
     })
 
-    this.grpcGateway.on('scan', async dataStr => {
-      log.info(PRE, `
-      =====================================
-              READY FOR SCAN QRCODE
-      =====================================
-      `)
-
+    this.grpcGateway.on('scan', async (dataStr: string) => {
       const data = JSON.parse(dataStr)
+      if (data && data.status) {
+        this.emit('scan', '', data.status)
+      } else {
 
-      const fileBox = FileBox.fromUrl(data.url)
-      const url = await fileBoxToQrcode(fileBox)
-      this.emit('scan', url, ScanStatus.Cancel)
+        const fileBox = FileBox.fromUrl(data.url)
+        const url = await fileBoxToQrcode(fileBox)
+        this.emit('scan', url, ScanStatus.Cancel)
+      }
     })
 
     this.grpcGateway.on('login', async dataStr => {
@@ -258,11 +256,6 @@ export class PuppetMacpro extends Puppet {
       ======================================
       `)
       const data: GrpcLoginInfo = JSON.parse(dataStr)
-      log.silly(PRE, `
-      ========================================
-      login data : ${util.inspect(data)}
-      ========================================
-      `)
       const account = data.account
 
       log.verbose(PRE, `init cache manager`)
@@ -272,7 +265,8 @@ export class PuppetMacpro extends Puppet {
       const selfPayload: MacproContactPayload = {
         account: data.account,
         accountAlias: data.account_alias || data.account, // wxid
-        area: '',
+        city: '',
+        province: '',
         description: '',
         disturb: '',
         formName: '',
@@ -294,7 +288,6 @@ export class PuppetMacpro extends Puppet {
           userName: data.account,
           wxid: data.account_alias,
         }
-        log.silly(PRE, `memory slot : ${util.inspect(this.memorySlot)}`)
         await this.memory.set(MEMORY_SLOT_NAME, this.memorySlot)
         await this.memory.save()
       }
@@ -344,7 +337,8 @@ export class PuppetMacpro extends Puppet {
         const contact: MacproContactPayload = {
           account: contactInfo.alias || '',
           accountAlias: contactInfo.username || contactInfo.alias, // wxid
-          area: '',
+          city: '',
+          province: '',
           description: contactInfo.signature || '',
           disturb: '',
           formName: '',
@@ -460,7 +454,8 @@ export class PuppetMacpro extends Puppet {
           memberPayload = {
             account: _data.account,
             accountAlias: _data.account,
-            area: '',
+            city: '',
+            province: '',
             description: '',
             disturb: '',
             formName: '',
@@ -477,7 +472,8 @@ export class PuppetMacpro extends Puppet {
           const contact: MacproContactPayload = {
             account: _data.account,
             accountAlias: _data.account,
-            area: '',
+            city: '',
+            province: '',
             description: '',
             disturb: '',
             formName: '',
@@ -519,7 +515,8 @@ export class PuppetMacpro extends Puppet {
           const roomMemberPayload: MacproRoomMemberPayload = {
             account: member.userName,
             accountAlias: member.userName,
-            area: '',
+            city: '',
+            province: '',
             description: '',
             disturb: '',
             formName: member.displayName,
@@ -539,7 +536,8 @@ export class PuppetMacpro extends Puppet {
             const contact: MacproContactPayload = {
               account: member.userName,
               accountAlias: member.userName,
-              area: '',
+              city: '',
+              province: '',
               description: '',
               disturb: '',
               formName: member.displayName,
@@ -582,7 +580,8 @@ export class PuppetMacpro extends Puppet {
       const contact: MacproContactPayload = {
         account: newContact.account,
         accountAlias: newContact.account_alias || newContact.account,
-        area: newContact.area,
+        city: newContact.area ? newContact.area.split('_')[1] : '',
+        province: newContact.area ? newContact.area.split('_')[0] : '',
         description: '',
         disturb: '',
         formName: '',
@@ -717,7 +716,8 @@ export class PuppetMacpro extends Puppet {
       const contact: MacproContactPayload = {
         account: _contact.account,
         accountAlias: _contact.account_alias || _contact.account, // weixin and wxid are the same string
-        area: _contact.area,
+        city: _contact.area ? _contact.area.split('_')[1] : '',
+        province: _contact.area ? _contact.area.split('_')[0] : '',
         description: _contact.description,
         disturb: _contact.disturb,
         formName: _contact.form_name,
@@ -827,15 +827,15 @@ export class PuppetMacpro extends Puppet {
     log.verbose(PRE, 'contactRawPayloadParser()')
 
     const payload: ContactPayload = {
-      address   : rawPayload.area,
+      address   : rawPayload.province + ',' + rawPayload.city,
       alias     : rawPayload.formName,
       avatar    : rawPayload.thumb,
-      city      : rawPayload.area,
+      city      : rawPayload.city,
       friend    : isStrangerV1(rawPayload.v1),
       gender    : rawPayload.sex,
       id        : rawPayload.accountAlias,
       name      : rawPayload.name,
-      province  : rawPayload.area,
+      province  : rawPayload.province,
       signature : rawPayload.description,
       type      : ContactType.Personal,
       weixin    : rawPayload.account,
@@ -965,15 +965,14 @@ export class PuppetMacpro extends Puppet {
     const contactIdOrRoomId =  receiver.roomId || receiver.contactId
 
     const fileUrl = await this.generatorFileUrl(file)
-    log.silly(PRE, `file url : ${util.inspect(fileUrl)}`)
-    // this needs to run before mimeType is available
+
     await file.ready()
 
     const type = (file.mimeType && file.mimeType !== 'application/octet-stream')
       ? file.mimeType
       : path.extname(file.name)
 
-    log.silly(PRE, `fileType ${type}`)
+    log.silly(PRE, `fileType : ${type}`)
     switch (type) {
       case '.slk':
         throw new Error('not support')
@@ -1285,7 +1284,7 @@ export class PuppetMacpro extends Puppet {
 
   // TODO: 转发小程序
   public async messageMiniProgram (messageId: string)  : Promise<MiniProgramPayload> {
-    log.verbose(PRE, 'messageUrl(%s)', messageId)
+    log.verbose(PRE, 'messageMiniProgram(%s)', messageId)
 
     return {
       title : 'Macpro title for ' + messageId,
@@ -1312,6 +1311,7 @@ export class PuppetMacpro extends Puppet {
       MacproMessageType.Image,
       MacproMessageType.Video,
       MacproMessageType.Voice,
+      MacproMessageType.Gif,
     ]
     if (supportedMessageTypeToFileBox.includes(messageType)) {
       const fileBox = FileBox.fromUrl(messagePayload.content)
@@ -1379,7 +1379,6 @@ export class PuppetMacpro extends Puppet {
     rawPayload: MacproRoomPayload,
   ): Promise<RoomPayload> {
     log.verbose(PRE, 'roomRawPayloadParser()')
-    log.silly(`room raw payload data : ${JSON.stringify(rawPayload)}`)
     const payload: RoomPayload = {
       avatar: rawPayload.thumb,
       id : rawPayload.number,

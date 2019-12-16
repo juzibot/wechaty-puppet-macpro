@@ -34,7 +34,8 @@ export default class MacproContact {
     const contactRawPayload: MacproContactPayload = {
       account: res.account,
       accountAlias: res.name_remark,
-      area: res.area,
+      city: res.area ? res.area.split('_')[1] : '',
+      province: res.area ? res.area.split('_')[0] : '',
       description: res.description,
       disturb: res.disturb,
       formName: res.form_name,
@@ -77,7 +78,7 @@ export default class MacproContact {
       data,
     })
 
-    if (res.code === RequestStatus.Success) {
+    if (res && res.code === RequestStatus.Success) {
       return RequestStatus.Success
     } else {
       return RequestStatus.Fail
@@ -97,7 +98,7 @@ export default class MacproContact {
       data,
     })
 
-    if (res.code === RequestStatus.Success) {
+    if (res && res.code === RequestStatus.Success) {
       return RequestStatus.Success
     } else {
       return RequestStatus.Fail

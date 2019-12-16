@@ -31,7 +31,8 @@ export interface GrpcContactInfo {
 export interface MacproContactPayload {
   accountAlias: string,
   account: string,
-  area: string,
+  city: string,
+  province: string,
   description: string,
   disturb: string,
   formName: string,

@@ -15,6 +15,7 @@ import { CallbackType, GrpcRoomPayload } from '../schemas'
 import { DebounceQueue, ThrottleQueue } from 'rx-queue'
 import { Subscription } from 'rxjs'
 import { isRoomId } from '../pure-function-helpers'
+import { ScanStatus } from 'wechaty-puppet'
 
 const PRE = 'GRPC_GATEWAY'
 
@@ -26,20 +27,16 @@ export class GrpcGateway extends EventEmitter {
   private endpoint: string
   private client: MacproRequestClient
   private stream?: grpc.ClientReadableStream<ResponseObject>
-  private heartbeatTime: number
   private debounceQueue?: DebounceQueue
   private debounceQueueSubscription?: Subscription
   private throttleQueue?: ThrottleQueue
   private throttleQueueSubscription?: Subscription
-  private hasLogout: boolean
 
   constructor (token: string, endpoint: string) {
     super()
     this.endpoint = endpoint
     this.token = token
-    this.hasLogout = false
     this.client = new MacproRequestClient(this.endpoint, grpc.credentials.createInsecure())
-    this.heartbeatTime = Date.now()
     this.debounceQueue = new DebounceQueue(30 * 1000)
     this.debounceQueueSubscription = this.debounceQueue.subscribe(async () => {
       try {
@@ -130,6 +127,9 @@ export class GrpcGateway extends EventEmitter {
         return resData.data || resData
       } else {
         log.silly(PRE, `${apiName} request error data : ${util.inspect(resData)}`)
+        if (resData.msg === '微信已掉线，不能操作') {
+          this.emit('reconnect')
+        }
       }
     } catch (err) {
       log.silly(PRE, `${apiName} request error`)
@@ -197,7 +197,7 @@ export class GrpcGateway extends EventEmitter {
   public on (event: 'room-create', listener: ((data: string) => any)): this
   public on (event: 'room-join', listener: ((data: string) => any)): this
   public on (event: 'room-qrcode', listener: ((data: string) => any)): this
-  public on (event: 'scan', listener: ((data: string) => any)): this
+  public on (event: 'scan', listener: ((data: string, status: ScanStatus) => any)): this
   public on (event: 'login', listener: ((data: string) => any)): this
   public on (event: 'message', listener: ((data: string) => any)): this
   public on (event: 'logout', listener: ((data: string) => any)): this
@@ -207,12 +207,12 @@ export class GrpcGateway extends EventEmitter {
 
   public on (
     event: GrpcGatewayEvent,
-    listener: ((data: string) => any),
+    listener: ((data: string, status: ScanStatus) => any),
   ): this {
     log.verbose(PRE, `on(${event}, ${typeof listener}) registered`)
-    super.on(event, (data: string) => {
+    super.on(event, (data: string, status: ScanStatus) => {
       try {
-        listener.call(this, data)
+        listener.call(this, data, status)
       } catch (e) {
         log.error(PRE, `onFunction(${event}) listener exception: ${e}`)
       }
@@ -303,6 +303,15 @@ export class GrpcGateway extends EventEmitter {
                   this.emit('contact-info', contactOrRoom.msg)
                 }
                 break
+              case CallbackType.ScanStatus:
+                const scanStr = JSON.parse(data.getData())
+                if (scanStr.status === 8) {
+                  const data = {
+                    status: ScanStatus.Confirmed
+                  }
+                  this.emit('scan', JSON.stringify(data))
+                }
+                break
               default:
                 log.warn(`Can not match any cases.`)
                 break
@@ -345,11 +354,7 @@ export class GrpcGateway extends EventEmitter {
             this.emit('message', data.getData())
             break
           case 'logout' :
-            log.warn(`Received logout event from server.`)
-            if (!this.hasLogout) {
-              this.emit('logout', data.getData())
-              this.hasLogout = true
-            }
+            this.emit('logout', data.getData())
             break
           case 'add-friend':
             this.emit('add-friend', data.getData())
@@ -360,18 +365,7 @@ export class GrpcGateway extends EventEmitter {
           case 'del-friend':
             this.emit('del-friend', data.getData())
             break
-          case 'heartbeat-logout':
-            if (!this.hasLogout) {
-              this.emit('logout', '')
-              this.hasLogout = true
-            }
-            break
           case 'heartbeat':
-            const now = Date.now()
-            if (now - this.heartbeatTime > 90 * 1000) {
-              this.heartbeatTime = NaN
-              await this.request('clearWeChatInfo')
-            }
             if (this.debounceQueue && this.throttleQueue) {
               this.debounceQueue.next(data)
               this.throttleQueue.next(data)
@@ -379,8 +373,6 @@ export class GrpcGateway extends EventEmitter {
             break
           case 'server-heartbeat':
             log.silly(PRE, `Set server heartbeat time.`)
-            const serverHeartbeatTime = Date.now()
-            this.heartbeatTime = serverHeartbeatTime
             break
           default:
             const code = data.getCode()

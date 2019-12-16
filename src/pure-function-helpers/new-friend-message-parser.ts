@@ -19,7 +19,8 @@ export function newFriendMessageParser (
     const contact: MacproContactPayload = {
       account: contactInfo.account,
       accountAlias: contactInfo.account,
-      area: contactInfo.area,
+      city: contactInfo.area ? contactInfo.area.split('_')[1] : '',
+      province: contactInfo.area ? contactInfo.area.split('_')[0] : '',
       description: '',
       disturb: '',
       formName: '',
