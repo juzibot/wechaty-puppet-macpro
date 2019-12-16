@@ -307,7 +307,7 @@ export class GrpcGateway extends EventEmitter {
                 const scanStr = JSON.parse(data.getData())
                 if (scanStr.status === 8) {
                   const data = {
-                    status: ScanStatus.Confirmed
+                    status: ScanStatus.Confirmed,
                   }
                   this.emit('scan', JSON.stringify(data))
                 }
