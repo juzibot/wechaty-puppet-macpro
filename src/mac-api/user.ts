@@ -69,6 +69,7 @@ export default class MacproUser {
       account: account,
       content: content,
       my_account: loginedId,
+      extend: loginedId,
     }
 
     const res = await this.requestClient.request({

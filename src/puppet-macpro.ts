@@ -659,15 +659,8 @@ export class PuppetMacpro extends Puppet {
     switch (payload.content_type) {
 
       case MacproMessageType.Text:
-        const textEventMatches = await Promise.all([
-          this.onMacproMessageFriendshipEvent(payload),
-        ])
-        /**
-         * If no event matched above, then emit the message
-         */
-        if (!textEventMatches.reduce((prev, cur) => prev || cur, false)) {
-          this.emit('message', messageId)
-        }
+        this.onMacproMessageFriendshipEvent(payload),
+        this.emit('message', messageId)
         break
 
       case MacproMessageType.Image:
@@ -691,7 +684,6 @@ export class PuppetMacpro extends Puppet {
       case MacproMessageType.System:
         await Promise.all([
           this.onMacproMessageFriendshipEvent(payload),
-          /* ----------------------------------------- */
           this.onMacproMessageRoomEventJoin(payload),
           this.onMacproMessageRoomEventLeave(payload),
           this.onMacproMessageRoomEventTopic(payload),
@@ -1167,7 +1159,7 @@ export class PuppetMacpro extends Puppet {
     log.verbose(PRE, 'onMacproMessageRoomEventTopic({id=%s})', rawPayload.messageId)
 
     const roomTopicEvent = roomTopicEventMessageParser(rawPayload)
-
+    log.silly(`roomTopicEvent : ${JSON.stringify(roomTopicEvent)}`)
     if (roomTopicEvent) {
       const changerName = roomTopicEvent.changerName
       const newTopic    = roomTopicEvent.topic
@@ -1190,6 +1182,13 @@ export class PuppetMacpro extends Puppet {
        * Set Cache Dirty
        */
       await this.roomPayloadDirty(roomId)
+      if (this.cacheManager) {
+        const room = await this.cacheManager.getRoom(roomId)
+        if (room) {
+          room.name = roomTopicEvent.topic
+          await this.cacheManager.setRoom(roomId, room)
+        }
+      }
 
       this.emit('room-topic', roomId, newTopic, oldTopic, changerId, timestamp)
       return true

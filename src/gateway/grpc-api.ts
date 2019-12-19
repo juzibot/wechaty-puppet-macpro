@@ -128,7 +128,7 @@ export class GrpcGateway extends EventEmitter {
       } else {
         log.silly(PRE, `${apiName} request error data : ${util.inspect(resData)}`)
         if (resData.msg === '微信已掉线，不能操作') {
-          this.emit('reconnect')
+          log.silly(`Already logout, need to restart your bot.`)
         }
       }
     } catch (err) {
