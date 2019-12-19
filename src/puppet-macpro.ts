@@ -64,7 +64,7 @@ import {
   VERSION,
 }                                   from './config'
 
-import { ThrottleQueue, DelayQueueExecutor } from 'rx-queue'
+import { ThrottleQueue } from 'rx-queue'
 
 import {
   GrpcPrivateMessagePayload,
@@ -137,7 +137,7 @@ export class PuppetMacpro extends Puppet {
 
   private token: string
 
-  private apiQueue: DelayQueueExecutor
+  // private apiQueue: DelayQueueExecutor
 
   private memorySlot: MacproMemorySlot
 
@@ -176,9 +176,9 @@ export class PuppetMacpro extends Puppet {
       this.message = new MacproMessage(this.requestClient)
       this.room = new MacproRoom(this.requestClient)
 
-      const max = 0.05
+      /* const max = 0.05
       const min = 0.03
-      this.apiQueue = new DelayQueueExecutor(Math.max(min, Math.random() * max) * 1000)
+      this.apiQueue = new DelayQueueExecutor(Math.max(min, Math.random() * max) * 1000) */
 
       this.reconnectThrottleQueue = new ThrottleQueue<string>(5000)
       this.reconnectThrottleQueue.subscribe(async reason => {
@@ -568,7 +568,7 @@ export class PuppetMacpro extends Puppet {
     switch (payload.content_type) {
 
       case MacproMessageType.Text:
-        this.onMacproMessageFriendshipEvent(payload),
+        await this.onMacproMessageFriendshipEvent(payload)
         this.emit('message', messageId)
         break
       case MacproMessageType.Image:
@@ -655,9 +655,9 @@ export class PuppetMacpro extends Puppet {
           thumb: room.thumb,
         }
         await this.cacheManager.setRoom(room.number, roomPayload)
-        await this.apiQueue.execute(async () => {
+        /* await this.apiQueue.execute(async () => {
           await this.room.syncRoomDetailInfo(this.selfId(), room.number)
-        })
+        }) */
       }
     }))
   }

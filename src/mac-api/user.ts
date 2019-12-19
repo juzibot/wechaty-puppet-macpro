@@ -68,8 +68,8 @@ export default class MacproUser {
     const data = {
       account: account,
       content: content,
-      my_account: loginedId,
       extend: loginedId,
+      my_account: loginedId,
     }
 
     const res = await this.requestClient.request({
