@@ -327,104 +327,13 @@ export class PuppetMacpro extends Puppet {
 
     this.grpcGateway.on('message', data => this.onProcessMessage(JSON.parse(data)))
 
-    this.grpcGateway.on('contact-list', data => this.setContactToCache(data))
+    this.grpcGateway.on('contact-list', data => this.syncContactList(data))
 
-    this.grpcGateway.on('contact-info', async (data: string) => {
-      log.verbose(PRE, `Sync contact detail info : ${data}`)
-      const contactInfo: GrpcContactInfo = JSON.parse(data)
-      if (this.cacheManager) {
-        const callback = this.getCallback(contactInfo.username)
-        const contact: MacproContactPayload = {
-          account: contactInfo.alias || '',
-          accountAlias: contactInfo.username || contactInfo.alias, // wxid
-          city: '',
-          description: contactInfo.signature || '',
-          disturb: '',
-          formName: '',
-          name: contactInfo.nickname,
-          province: '',
-          sex: ContactGender.Unknown,
-          thumb: contactInfo.headurl,
-          v1: '',
-        }
-        await this.cacheManager.setContact(contact.accountAlias, contact)
-        callback(contact)
-        this.removeCallback(contactInfo.username)
-      }
-    })
+    this.grpcGateway.on('room-list', data => this.syncRoomList(data))
 
-    this.grpcGateway.on('room-list', async (data: string) => {
-      const _data: GrpcSyncRoomListBox = JSON.parse(data)
-      const roomList: GrpcSyncRoomList[] = JSON.parse(_data.info)
-      if (roomList && roomList.length === 0) {
-        log.warn(`
-          This is a new account which login wechaty based on Mac protocal first time,
-          please add one room to Contacts or send message to one existed room for loading room data,
-          and then just restart the bot again.
-        `)
-      }
-      log.silly(PRE, `Sync room list, its length : ${roomList.length}`)
-      await Promise.all(roomList.map(async (room) => {
-        if (this.cacheManager) {
-          const roomPayload: MacproRoomPayload = {
-            disturb: 0,
-            members: [],
-            name: room.name,
-            number: room.number,
-            owner: '',
-            thumb: room.thumb,
-          }
-          await this.cacheManager.setRoom(room.number, roomPayload)
-          await this.apiQueue.execute(async () => {
-            await this.room.syncRoomDetailInfo(this.selfId(), room.number)
-          })
-        }
-      }))
-    })
+    this.grpcGateway.on('contact-info', data => this.syncContactInfo(data))
 
-    this.grpcGateway.on('room-info', async (data: string) => {
-      log.verbose(PRE, `Sync room detail info`)
-      const roomDetailInfo: GrpcRoomPayload = JSON.parse(data)
-      if (this.cacheManager) {
-        const cacheRoom = await this.cacheManager.getRoom(roomDetailInfo.number)
-        if (cacheRoom) {
-          // step 1: get the owner and thumb of this room
-          cacheRoom.owner = roomDetailInfo.author
-          cacheRoom.thumb = roomDetailInfo.thumb
-          // step 2: get the members of this room
-          await this.room.roomMember(this.selfId(), roomDetailInfo.number)
-
-          this.room.pushRoomMemberCallback(cacheRoom.number, async (macproMembers) => {
-            cacheRoom.members = macproMembers
-            if (!this.cacheManager) {
-              throw CacheManageError('pushRoomMemberCallback()')
-            }
-            await this.cacheManager.setRoom(cacheRoom.number, cacheRoom)
-            // step 3: resolve the room info
-            this.room.resolveRoomCallback(cacheRoom.number, cacheRoom)
-          })
-        } else {
-          const room: MacproRoomPayload = {
-            disturb: 0,
-            members: [],
-            name: roomDetailInfo.name,
-            number: roomDetailInfo.number,
-            owner: roomDetailInfo.author,
-            thumb: roomDetailInfo.thumb,
-          }
-          await this.room.roomMember(this.selfId(), roomDetailInfo.number)
-
-          this.room.pushRoomMemberCallback(room.number, async (macproMembers) => {
-            room.members = macproMembers
-            if (!this.cacheManager) {
-              throw CacheManageError('pushRoomMemberCallback()')
-            }
-            await this.cacheManager.setRoom(room.number, room)
-            this.room.resolveRoomCallback(room.number, room)
-          })
-        }
-      }
-    })
+    this.grpcGateway.on('room-info', data => this.syncRoomInfo(data))
 
     this.grpcGateway.on('room-qrcode', (data: string) => {
       const _data: GrpcRoomQrcode = JSON.parse(data)
@@ -662,7 +571,6 @@ export class PuppetMacpro extends Puppet {
         this.onMacproMessageFriendshipEvent(payload),
         this.emit('message', messageId)
         break
-
       case MacproMessageType.Image:
       case MacproMessageType.Voice:
       case MacproMessageType.Video:
@@ -674,13 +582,11 @@ export class PuppetMacpro extends Puppet {
       case MacproMessageType.Gif:
         this.emit('message', messageId)
         break
-
       case MacproMessageType.Location:
       case MacproMessageType.RedPacket:
       case MacproMessageType.MoneyTransaction:
         this.emit('message', messageId)
         break
-
       case MacproMessageType.System:
         await Promise.all([
           this.onMacproMessageFriendshipEvent(payload),
@@ -690,7 +596,6 @@ export class PuppetMacpro extends Puppet {
         ])
         this.emit('message', messageId)
         break
-
       default:
         this.emit('message', messageId)
         break
@@ -698,8 +603,8 @@ export class PuppetMacpro extends Puppet {
 
   }
 
-  public async setContactToCache (data: string): Promise<void> {
-    log.verbose(PRE, `setContactToCache()`)
+  public async syncContactList (data: string): Promise<void> {
+    log.verbose(PRE, `syncContactList()`)
 
     const contactListInfo: ContactList = JSON.parse(data)
     const { currentPage, total, info } = contactListInfo
@@ -720,12 +625,108 @@ export class PuppetMacpro extends Puppet {
       }
 
       if (!this.cacheManager) {
-        throw CacheManageError('setContactToCache()')
+        throw CacheManageError('syncContactList()')
       }
       await this.cacheManager.setContact(contact.accountAlias, contact)
     }))
     if (currentPage * 100 > total) {
       log.verbose(PRE, `contact data loaded. contact length: ${info.length}`)
+    }
+  }
+
+  public async syncRoomList (data: string) {
+    const _data: GrpcSyncRoomListBox = JSON.parse(data)
+    const roomList: GrpcSyncRoomList[] = JSON.parse(_data.info)
+    if (roomList && roomList.length === 0) {
+      log.warn(`
+        This is a new account which login wechaty based on Mac protocal first time,
+        please add one room to Contacts or send message to one existed room for loading room data,
+        and then just restart the bot again.
+      `)
+    }
+    await Promise.all(roomList.map(async (room) => {
+      if (this.cacheManager) {
+        const roomPayload: MacproRoomPayload = {
+          disturb: 0,
+          members: [],
+          name: room.name,
+          number: room.number,
+          owner: '',
+          thumb: room.thumb,
+        }
+        await this.cacheManager.setRoom(room.number, roomPayload)
+        await this.apiQueue.execute(async () => {
+          await this.room.syncRoomDetailInfo(this.selfId(), room.number)
+        })
+      }
+    }))
+  }
+
+  public async syncContactInfo (data: string) {
+    log.verbose(PRE, `listen on contact detail info : ${data}`)
+    const contactInfo: GrpcContactInfo = JSON.parse(data)
+    if (this.cacheManager) {
+      const callback = this.getCallback(contactInfo.username)
+      const contact: MacproContactPayload = {
+        account: contactInfo.alias || '',
+        accountAlias: contactInfo.username || contactInfo.alias, // wxid
+        city: '',
+        description: contactInfo.signature || '',
+        disturb: '',
+        formName: '',
+        name: contactInfo.nickname,
+        province: '',
+        sex: ContactGender.Unknown,
+        thumb: contactInfo.headurl,
+        v1: '',
+      }
+      await this.cacheManager.setContact(contact.accountAlias, contact)
+      callback(contact)
+      this.removeCallback(contactInfo.username)
+    }
+  }
+
+  public async syncRoomInfo (data: string) {
+    log.verbose(PRE, `listen on room detail info`)
+    const roomDetailInfo: GrpcRoomPayload = JSON.parse(data)
+    if (this.cacheManager) {
+      const cacheRoom = await this.cacheManager.getRoom(roomDetailInfo.number)
+      if (cacheRoom) {
+        // step 1: get the owner and thumb of this room
+        cacheRoom.owner = roomDetailInfo.author
+        cacheRoom.thumb = roomDetailInfo.thumb
+        // step 2: get the members of this room
+        await this.room.roomMember(this.selfId(), roomDetailInfo.number)
+
+        this.room.pushRoomMemberCallback(cacheRoom.number, async (macproMembers) => {
+          cacheRoom.members = macproMembers
+          if (!this.cacheManager) {
+            throw CacheManageError('pushRoomMemberCallback()')
+          }
+          await this.cacheManager.setRoom(cacheRoom.number, cacheRoom)
+          // step 3: resolve the room info
+          this.room.resolveRoomCallback(cacheRoom.number, cacheRoom)
+        })
+      } else {
+        const room: MacproRoomPayload = {
+          disturb: 0,
+          members: [],
+          name: roomDetailInfo.name,
+          number: roomDetailInfo.number,
+          owner: roomDetailInfo.author,
+          thumb: roomDetailInfo.thumb,
+        }
+        await this.room.roomMember(this.selfId(), roomDetailInfo.number)
+
+        this.room.pushRoomMemberCallback(room.number, async (macproMembers) => {
+          room.members = macproMembers
+          if (!this.cacheManager) {
+            throw CacheManageError('pushRoomMemberCallback()')
+          }
+          await this.cacheManager.setRoom(room.number, room)
+          this.room.resolveRoomCallback(room.number, room)
+        })
+      }
     }
   }
 

@@ -230,162 +230,156 @@ export class GrpcGateway extends EventEmitter {
       request.setData(JSON.stringify(data))
     }
 
-    try {
-      const channel = this.client.getChannel()
-      if (channel) {
-        await new Promise((resolve, reject) => {
-          channel.getConnectivityState(true)
-          const beforeState = channel.getConnectivityState(false)
-          channel.watchConnectivityState(beforeState, Date.now() + 5000, (err) => {
-            if (err) {
-              reject(new Error('Try to connect to server timeout.'))
+    const channel = this.client.getChannel()
+    if (channel) {
+      await new Promise((resolve, reject) => {
+        channel.getConnectivityState(true)
+        const beforeState = channel.getConnectivityState(false)
+        channel.watchConnectivityState(beforeState, Date.now() + 5000, (err) => {
+          if (err) {
+            reject(new Error('Try to connect to server timeout.'))
+          } else {
+            const state = channel.getConnectivityState(false)
+            if (state !== grpc.connectivityState.READY) {
+              reject(new Error(`Failed to connect to server, state changed to ${state}`))
             } else {
-              const state = channel.getConnectivityState(false)
-              if (state !== grpc.connectivityState.READY) {
-                reject(new Error(`Failed to connect to server, state changed to ${state}`))
-              } else {
-                resolve()
-              }
+              resolve()
             }
-          })
+          }
         })
-      } else {
-        throw new Error('No channel for grpc client.')
-      }
-
-      const stream = this.client.notify(request)
-
-      stream.on('error', async (err: any) => {
-        log.error(PRE, `GRPC SERVER ERROR.
-        =====================================================================
-        try to reconnect grpc server, waiting...
-        =====================================================================
-        `)
-        if (err.code === 14 || err.code === 13 || err.code === 2) {
-          await new Promise(resolve => setTimeout(resolve, 5000))
-          this.emit('reconnect')
-        } else {
-          log.error(PRE, `stream error:`, util.inspect(err))
-        }
       })
-      stream.on('end', () => {
-        log.error(PRE, 'grpc server end.')
-      })
-      stream.on('close', () => {
-        log.error(PRE, 'grpc server close')
-      })
-      stream.on('data', async (data: MessageStream) => {
-        log.silly(PRE, `event code :  ${data.getCode()}`)
-
-        if (this.debounceQueue && this.throttleQueue) {
-          this.debounceQueue.next(data)
-          this.throttleQueue.next(data)
-        }
-        switch (data.getCode()) {
-          case 'callback-send':
-            const dataStr = data.getData()
-            const _data = JSON.parse(dataStr)
-            const type = _data.type
-            switch (Number(type)) {
-              case CallbackType.SendAddFriend:
-                this.emit('add-friend-before-accept', data.getData())
-                break
-              case CallbackType.RoomList:
-                this.emit('room-list', data.getData())
-                break
-              case CallbackType.ContactOrRoom:
-                const contactOrRoomStr = data.getData()
-                const contactOrRoom = JSON.parse(contactOrRoomStr)
-                const roomInfo: GrpcRoomPayload = JSON.parse(contactOrRoom.msg)
-                if (roomInfo && roomInfo.number && isRoomId(roomInfo.number)) {
-                  this.emit('room-info', contactOrRoom.msg)
-                } else {
-                  this.emit('contact-info', contactOrRoom.msg)
-                }
-                break
-              case CallbackType.ScanStatus:
-                const scanStr = JSON.parse(data.getData())
-                if (scanStr.status === 8) {
-                  const data = {
-                    status: ScanStatus.Confirmed,
-                  }
-                  this.emit('scan', JSON.stringify(data))
-                }
-                break
-              default:
-                log.warn(`Can not match any cases.`)
-                break
-            }
-            break
-          case 'invalid-token':
-            macproToken()
-            log.warn(`
-            ===================================================
-            This thread will been killed now.
-            ===================================================
-            `)
-            process.exit(0)
-            break
-          case 'not-login':
-            this.emit('not-login', data.getData())
-            break
-          case 'contact-list' :
-            this.emit('contact-list', data.getData())
-            break
-          case 'room-member' :
-            this.emit('room-member', data.getData())
-            break
-          case 'room-create' :
-            this.emit('room-create', data.getData())
-            break
-          case 'room-join' :
-            this.emit('room-join', data.getData())
-            break
-          case 'room-qrcode' :
-            this.emit('room-qrcode', data.getData())
-            break
-          case 'scan' :
-            this.emit('scan', data.getData())
-            break
-          case 'login' :
-            this.emit('login', data.getData())
-            break
-          case 'message' :
-            this.emit('message', data.getData())
-            break
-          case 'logout' :
-            this.emit('logout', data.getData())
-            break
-          case 'add-friend':
-            this.emit('add-friend', data.getData())
-            break
-          case 'new-friend':
-            this.emit('new-friend', data.getData())
-            break
-          case 'del-friend':
-            this.emit('del-friend', data.getData())
-            break
-          case 'heartbeat':
-            if (this.debounceQueue && this.throttleQueue) {
-              this.debounceQueue.next(data)
-              this.throttleQueue.next(data)
-            }
-            break
-          case 'server-heartbeat':
-            log.silly(PRE, `Set server heartbeat time.`)
-            break
-          default:
-            const code = data.getCode()
-            log.silly(`the default code : ${code}`)
-            log.error(PRE, `Can not get the notify`)
-        }
-      })
-      this.stream = stream
-    } catch (err) {
-      await new Promise(resolve => setTimeout(resolve, 5000))
-      log.silly(PRE, `${err}`)
-      this.emit('reconnect')
+    } else {
+      throw new Error('No channel for grpc client.')
     }
+
+    const stream = this.client.notify(request)
+
+    stream.on('error', async (err: any) => {
+      log.error(PRE, `GRPC SERVER ERROR.
+      =====================================================================
+      try to reconnect grpc server, waiting...
+      =====================================================================
+      `)
+      if (err.code === 14 || err.code === 13 || err.code === 2) {
+        await new Promise(resolve => setTimeout(resolve, 5000))
+        this.emit('reconnect')
+      } else {
+        log.error(PRE, `stream error:`, util.inspect(err))
+      }
+    })
+    stream.on('end', () => {
+      log.error(PRE, 'grpc server end.')
+    })
+    stream.on('close', () => {
+      log.error(PRE, 'grpc server close')
+    })
+    stream.on('data', async (data: MessageStream) => {
+      log.silly(PRE, `event code :  ${data.getCode()}`)
+
+      if (this.debounceQueue && this.throttleQueue) {
+        this.debounceQueue.next(data)
+        this.throttleQueue.next(data)
+      }
+      switch (data.getCode()) {
+        case 'callback-send':
+          const dataStr = data.getData()
+          const _data = JSON.parse(dataStr)
+          const type = _data.type
+          switch (Number(type)) {
+            case CallbackType.SendAddFriend:
+              this.emit('add-friend-before-accept', data.getData())
+              break
+            case CallbackType.RoomList:
+              this.emit('room-list', data.getData())
+              break
+            case CallbackType.ContactOrRoom:
+              const contactOrRoomStr = data.getData()
+              const contactOrRoom = JSON.parse(contactOrRoomStr)
+              const roomInfo: GrpcRoomPayload = JSON.parse(contactOrRoom.msg)
+              if (roomInfo && roomInfo.number && isRoomId(roomInfo.number)) {
+                this.emit('room-info', contactOrRoom.msg)
+              } else {
+                this.emit('contact-info', contactOrRoom.msg)
+              }
+              break
+            case CallbackType.ScanStatus:
+              const scanStr = JSON.parse(data.getData())
+              if (scanStr.status === 8) {
+                const data = {
+                  status: ScanStatus.Confirmed,
+                }
+                this.emit('scan', JSON.stringify(data))
+              }
+              break
+            default:
+              log.warn(`Can not match any cases.`)
+              break
+          }
+          break
+        case 'invalid-token':
+          macproToken()
+          log.warn(`
+          ===================================================
+          This thread will been killed now.
+          ===================================================
+          `)
+          process.exit(0)
+          break
+        case 'not-login':
+          this.emit('not-login', data.getData())
+          break
+        case 'contact-list' :
+          this.emit('contact-list', data.getData())
+          break
+        case 'room-member' :
+          this.emit('room-member', data.getData())
+          break
+        case 'room-create' :
+          this.emit('room-create', data.getData())
+          break
+        case 'room-join' :
+          this.emit('room-join', data.getData())
+          break
+        case 'room-qrcode' :
+          this.emit('room-qrcode', data.getData())
+          break
+        case 'scan' :
+          this.emit('scan', data.getData())
+          break
+        case 'login' :
+          this.emit('login', data.getData())
+          break
+        case 'message' :
+          this.emit('message', data.getData())
+          break
+        case 'logout' :
+          this.emit('logout', data.getData())
+          break
+        case 'add-friend':
+          this.emit('add-friend', data.getData())
+          break
+        case 'new-friend':
+          this.emit('new-friend', data.getData())
+          break
+        case 'del-friend':
+          this.emit('del-friend', data.getData())
+          break
+        case 'heartbeat':
+          if (this.debounceQueue && this.throttleQueue) {
+            this.debounceQueue.next(data)
+            this.throttleQueue.next(data)
+          }
+          break
+        case 'server-heartbeat':
+          log.silly(PRE, `Set server heartbeat time.`)
+          break
+        default:
+          const code = data.getCode()
+          log.silly(`the default code : ${code}`)
+          log.error(PRE, `Can not get the notify`)
+      }
+    })
+    this.stream = stream
   }
 
 }
