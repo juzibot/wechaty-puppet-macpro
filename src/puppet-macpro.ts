@@ -98,6 +98,7 @@ import {
   isStrangerV1,
   messageRawPayloadParser,
   newFriendMessageParser,
+  isContactId,
 } from './pure-function-helpers'
 import { roomJoinEventMessageParser } from './pure-function-helpers/room-event-join-message-parser'
 import { roomLeaveEventMessageParser } from './pure-function-helpers/room-event-leave-message-parser'
@@ -296,7 +297,7 @@ export class PuppetMacpro extends Puppet {
                  LOGOUT SUCCESS
       ======================================
       `)
-      this.emit('logout', this.selfId()) // TODO: need to emit logout event to wechaty
+      this.emit('logout', this.selfId())
       this.emit('reset', 'reset when received logout event.')
     })
 
@@ -499,9 +500,15 @@ export class PuppetMacpro extends Puppet {
     })
 
     this.grpcGateway.on('del-friend', async (dataStr: string) => {
-      // Bot delete Contact by WeChat App
       log.silly(PRE, `del-friend : ${dataStr}`)
-      // TODO: need to remove contact from cache
+      const data = JSON.parse(dataStr)
+      if (data && data.account) {
+        if (isContactId(data.account)) {
+          if (this.cacheManager) {
+            await this.cacheManager.deleteContact(data.account)
+          }
+        }
+      }
     })
 
     this.grpcGateway.on('add-friend-before-accept', (dataStr: string) => {
@@ -724,7 +731,7 @@ export class PuppetMacpro extends Puppet {
 
     this.state.off('pending')
 
-    await CacheManager.release() // TODO: flash-store bug
+    await CacheManager.release()
     await this.grpcGateway.stop()
     this.grpcGateway.removeAllListeners()
 
@@ -1220,7 +1227,6 @@ export class PuppetMacpro extends Puppet {
     await this.message.sendMiniProgram(_miniProgram)
   }
 
-  // TODO: 消息转发
   public async messageForward (
     receiver  : Receiver,
     messageId : string,
@@ -1243,13 +1249,11 @@ export class PuppetMacpro extends Puppet {
     } else if (payload.type === MessageType.Audio) {
       throw new Error(`not support`)
     } else if (payload.type === MessageType.Url) {
-      // TODO: currently this strips out the app information
       await this.messageSendUrl(
         receiver,
         await this.messageUrl(messageId)
       )
     } else if (payload.type === MessageType.MiniProgram) {
-      // TODO: currently this strips out the app information
       await this.messageSendMiniProgram(
         receiver,
         await this.messageMiniProgram(messageId)
@@ -1611,7 +1615,6 @@ export class PuppetMacpro extends Puppet {
     } else if (contact && contact.account) {
       return contact.accountAlias
     } else {
-      // TODO: should be careful about empty string
       return ''
     }
   }
