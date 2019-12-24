@@ -137,8 +137,6 @@ export class PuppetMacpro extends Puppet {
 
   private token: string
 
-  // private apiQueue: DelayQueueExecutor
-
   private memorySlot: MacproMemorySlot
 
   private addFriendCB: {[id: string]: any} = {}
@@ -175,10 +173,6 @@ export class PuppetMacpro extends Puppet {
       this.user = new MacproUser(this.token, this.requestClient)
       this.message = new MacproMessage(this.requestClient)
       this.room = new MacproRoom(this.requestClient)
-
-      /* const max = 0.05
-      const min = 0.03
-      this.apiQueue = new DelayQueueExecutor(Math.max(min, Math.random() * max) * 1000) */
 
       this.reconnectThrottleQueue = new ThrottleQueue<string>(5000)
       this.reconnectThrottleQueue.subscribe(async reason => {
@@ -690,25 +684,9 @@ export class PuppetMacpro extends Puppet {
     log.verbose(PRE, `listen on room detail info`)
     const roomDetailInfo: GrpcRoomPayload = JSON.parse(data)
     if (this.cacheManager) {
-      const cacheRoom = await this.cacheManager.getRoom(roomDetailInfo.number)
-      if (cacheRoom) {
-        // step 1: get the owner and thumb of this room
-        cacheRoom.owner = roomDetailInfo.author
-        cacheRoom.thumb = roomDetailInfo.thumb
-        // step 2: get the members of this room
-        await this.room.roomMember(this.selfId(), roomDetailInfo.number)
-
-        this.room.pushRoomMemberCallback(cacheRoom.number, async (macproMembers) => {
-          cacheRoom.members = macproMembers
-          if (!this.cacheManager) {
-            throw CacheManageError('pushRoomMemberCallback()')
-          }
-          await this.cacheManager.setRoom(cacheRoom.number, cacheRoom)
-          // step 3: resolve the room info
-          this.room.resolveRoomCallback(cacheRoom.number, cacheRoom)
-        })
-      } else {
-        const room: MacproRoomPayload = {
+      let cacheRoom = await this.cacheManager.getRoom(roomDetailInfo.number)
+      if (!cacheRoom) {
+        cacheRoom = {
           disturb: 0,
           members: [],
           name: roomDetailInfo.name,
@@ -716,17 +694,21 @@ export class PuppetMacpro extends Puppet {
           owner: roomDetailInfo.author,
           thumb: roomDetailInfo.thumb,
         }
-        await this.room.roomMember(this.selfId(), roomDetailInfo.number)
-
-        this.room.pushRoomMemberCallback(room.number, async (macproMembers) => {
-          room.members = macproMembers
-          if (!this.cacheManager) {
-            throw CacheManageError('pushRoomMemberCallback()')
-          }
-          await this.cacheManager.setRoom(room.number, room)
-          this.room.resolveRoomCallback(room.number, room)
-        })
+      } else {
+        cacheRoom.owner = roomDetailInfo.author
+        cacheRoom.thumb = roomDetailInfo.thumb
       }
+
+      await this.room.roomMember(this.selfId(), cacheRoom.number)
+
+      this.room.pushRoomMemberCallback(cacheRoom.number, async (macproMembers) => {
+        cacheRoom!.members = macproMembers
+        if (!this.cacheManager) {
+          throw CacheManageError('pushRoomMemberCallback()')
+        }
+        await this.cacheManager.setRoom(cacheRoom!.number, cacheRoom!)
+        this.room.resolveRoomCallback(cacheRoom!.number, cacheRoom!)
+      })
     }
   }
 
@@ -1361,10 +1343,8 @@ export class PuppetMacpro extends Puppet {
     }
 
     let rawPayload = await this.cacheManager.getRoom(roomId)
-
     if (!rawPayload || rawPayload.members.length === 0 || rawPayload.owner === '') {
       await this.room.syncRoomDetailInfo(this.selfId(), roomId)
-
       return new Promise((resolve) => {
         this.room.pushRoomCallback(roomId, async (room: MacproRoomPayload) => {
           resolve(room)
@@ -1427,6 +1407,7 @@ export class PuppetMacpro extends Puppet {
 
     if (roomMemberListPayload === undefined) {
       roomMemberListPayload = {}
+
       await this.room.roomMember(this.selfId(), roomId)
 
       return new Promise((resolve) => {
@@ -1458,6 +1439,7 @@ export class PuppetMacpro extends Puppet {
     let roomMemberListPayload = await this.cacheManager.getRoomMember(roomId)
     if (roomMemberListPayload === undefined) {
       roomMemberListPayload = {}
+
       await this.room.roomMember(this.selfId(), roomId)
 
       this.room.pushRoomMemberCallback(roomId, async (macproMembers) => {

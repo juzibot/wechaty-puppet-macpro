@@ -2,6 +2,7 @@ import AWS from 'aws-sdk'
 
 import { log, AWS_S3 } from '../config'
 import { GrpcGateway } from '../gateway/grpc-api'
+import { DedupeApi } from './dedupeApi'
 
 export interface RequestOption {
   data?: any,
@@ -14,14 +15,21 @@ export class RequestClient {
 
   private grpcGateway: GrpcGateway
 
+  private dedupeApi: DedupeApi
+
   constructor (grpcGateway: GrpcGateway) {
     this.grpcGateway = grpcGateway
+    this.dedupeApi = new DedupeApi()
   }
 
   public async request (option: RequestOption) {
     log.silly(PRE, `request()`)
-    const res = await this.grpcGateway.request(option.apiName, option.data)
-    return res
+    return this.dedupeApi.dedupe(
+      this.grpcGateway.request.bind(this.grpcGateway),
+      option.apiName,
+      option.data,
+    )
+    // return this.grpcGateway.request(option.apiName, option.data)
   }
 
   public async uploadFile (filename: string, stream: NodeJS.ReadableStream) {
