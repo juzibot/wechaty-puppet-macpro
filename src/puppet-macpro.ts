@@ -64,7 +64,7 @@ import {
   VERSION,
 }                                   from './config'
 
-import { ThrottleQueue } from 'rx-queue'
+import { ThrottleQueue, DelayQueueExecutor } from 'rx-queue'
 
 import {
   GrpcPrivateMessagePayload,
@@ -146,6 +146,10 @@ export class PuppetMacpro extends Puppet {
 
   private loginStatus: boolean
 
+  private syncRoomQueue: DelayQueueExecutor
+
+  private syncContactQueue: DelayQueueExecutor
+
   constructor (
     public options: PuppetOptions = {},
   ) {
@@ -174,6 +178,9 @@ export class PuppetMacpro extends Puppet {
       this.user = new MacproUser(this.token, this.requestClient)
       this.message = new MacproMessage(this.requestClient)
       this.room = new MacproRoom(this.requestClient)
+
+      this.syncRoomQueue = new DelayQueueExecutor(200)
+      this.syncContactQueue = new DelayQueueExecutor(200)
 
       this.reconnectThrottleQueue = new ThrottleQueue<string>(5000)
       this.reconnectThrottleQueue.subscribe(async reason => {
@@ -656,9 +663,6 @@ export class PuppetMacpro extends Puppet {
           thumb: room.thumb,
         }
         await this.cacheManager.setRoom(room.number, roomPayload)
-        /* await this.apiQueue.execute(async () => {
-          await this.room.syncRoomDetailInfo(this.selfId(), room.number)
-        }) */
       }
     }))
   }
@@ -794,7 +798,9 @@ export class PuppetMacpro extends Puppet {
     let rawPayload = await this.cacheManager.getContact(id)
 
     if (!rawPayload) {
-      await this.contact.syncContactInfo(this.selfId(), id)
+      await this.syncContactQueue.execute(async () => {
+        await this.contact.syncContactInfo(this.selfId(), id)
+      })
 
       return new Promise(resolve => {
         this.pushCallbackToPool(id, (data: MacproContactPayload) => {
@@ -1348,7 +1354,10 @@ export class PuppetMacpro extends Puppet {
 
     let rawPayload = await this.cacheManager.getRoom(roomId)
     if (!rawPayload || rawPayload.members.length === 0 || rawPayload.owner === '') {
-      await this.room.syncRoomDetailInfo(this.selfId(), roomId)
+      await this.syncRoomQueue.execute(async () => {
+        await this.room.syncRoomDetailInfo(this.selfId(), roomId)
+      })
+
       return new Promise((resolve) => {
         this.room.pushRoomCallback(roomId, async (room: MacproRoomPayload) => {
           resolve(room)
