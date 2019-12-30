@@ -1,5 +1,7 @@
 # WECHATY-PUPPET-MACPRO
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/juzibot/wechaty-puppet-macpro.svg)](https://greenkeeper.io/)
+
 ## Notice
 
 1. wechaty-puppet-macpro is still in Early Alpha Stage, please make sure you have the necessary engineering technics to deal with the bugs instead of just asking for support.
