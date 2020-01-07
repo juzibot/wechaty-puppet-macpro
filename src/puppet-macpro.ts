@@ -982,6 +982,10 @@ export class PuppetMacpro extends Puppet {
 
   }
 
+  public async messageRecall (messageId: string): Promise<boolean> {
+    throw new Error('Method not implemented. id: ' + messageId)
+  }
+
   private async generatorFileUrl (file: FileBox): Promise<string> {
     log.verbose(PRE, 'generatorFileUrl(%s)', file)
     const url = await this.requestClient.uploadFile(file.name, await file.toStream())

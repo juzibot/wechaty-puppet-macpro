@@ -1,6 +1,6 @@
 {
   "name": "wechaty-puppet-macpro",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Puppet Macpro for Wechaty",
   "directories": {
     "test": "tests"
@@ -60,12 +60,12 @@
     "pkg-jq": "^0.2.2",
     "shx": "^0.3.1",
     "tstest": "^0.4.1",
-    "wechaty-puppet": "^0.17.3"
+    "wechaty-puppet": "^0.17.4"
   },
   "peerDependencies": {
     "file-box": "^0.8.22",
     "memory-card": "^0.6.13",
-    "wechaty-puppet": "^0.17.3"
+    "wechaty-puppet": "^0.17.4"
   },
   "dependencies": {
     "@types/xml2json": "^0.11.0",
