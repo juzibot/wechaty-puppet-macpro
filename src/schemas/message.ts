@@ -36,21 +36,22 @@ export interface GrpcNewFriendMessagePayload {
 }
 
 export interface MacproMessagePayload {
+  content_type: MacproMessageType,
+  content: string,
+  file_name?: string,
+  g_name?: string,
+  g_number?: string,
+  messageId: string,
+  msg_source?: string,
+  my_account_alias?: string, // MY wxid
   my_account: string, // MY weixin
   my_name: string,
-  my_account_alias?: string, // MY wxid
-  to_account: string, // TO weixin
-  to_account_alias?: string, // TO wxid
-  to_name: string,
-  content: string,
   timestamp: number,
-  messageId: string,
-  voice_len?: number | string,
-  content_type: MacproMessageType,
+  to_account_alias?: string, // TO wxid
+  to_account: string, // TO weixin
+  to_name: string,
   type?: MessageSendType,
-  file_name?: string,
-  g_number?: string,
-  g_name?: string,
+  voice_len?: number | string,
 }
 
 export interface MiniProgram  {
@@ -70,4 +71,10 @@ export interface MacproUrlLink {
   thumbnailUrl? : string,
   title         : string,
   url           : string,
+}
+
+export interface MacproMessageSource {
+  silence?: boolean,
+  memberCount?: number,
+  atUserList?: string[],
 }
