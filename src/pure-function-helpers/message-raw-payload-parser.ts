@@ -14,6 +14,7 @@ import {
 
 import { messageType } from './message-type'
 import { log } from '../config'
+import { messageSourceParser } from './message-source-parser'
 
 const PRE = 'messageRawPayloadParser'
 
@@ -117,12 +118,12 @@ export async function messageRawPayloadParser (
    * 6. Set mention list, only for room messages
    * TODO: currently not available
    */
-  // if (roomId) {
-  //   const messageSource = await messageSourceParser(rawPayload.messageSource)
-  //   if (messageSource !== null && messageSource.atUserList) {
-  //     mentionIdList = messageSource.atUserList
-  //   }
-  // }
+  if (roomId) {
+    const messageSource = await messageSourceParser(rawPayload.msg_source!)
+    if (messageSource !== null && messageSource.atUserList) {
+      mentionIdList = messageSource.atUserList
+    }
+  }
 
   let payload: MessagePayload
 
