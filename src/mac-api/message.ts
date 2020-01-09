@@ -23,6 +23,7 @@ export default class MacproMessage {
       file_name: fileName,
       my_account: contactId,
       to_account: contactIdOrRoomId,
+      type: isRoomId(contactIdOrRoomId) ? 2 : 1,
     }
 
     const res = await this.requestClient.request({
@@ -47,6 +48,7 @@ export default class MacproMessage {
       thumb: urlLinkPayload.thumbnailUrl,
       title: urlLinkPayload.title,
       to_account: contactIdOrRoomId,
+      type: isRoomId(contactIdOrRoomId) ? 2 : 1,
       url: urlLinkPayload.url,
     }
 
@@ -70,6 +72,7 @@ export default class MacproMessage {
       card_name: cardName,
       my_account: contactId,
       to_account: contactIdOrRoomId,
+      type: isRoomId(contactIdOrRoomId) ? 2 : 1,
     }
 
     const res = await this.requestClient.request({
