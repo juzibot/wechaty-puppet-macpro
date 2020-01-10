@@ -1,4 +1,26 @@
 /* eslint camelcase: 0 */
+
+export interface GrpcFriendshipAcceptedData {
+  my_account: string,
+  my_name: string,
+  to_account: string,
+  data: string,
+  type: number,
+  time: number,
+  v1: string,
+  my_account_alias: string,
+  to_account_alias: string,
+}
+
+export interface GrpcFriendshipAcceptedDetail {
+  name: string,
+  account: string,
+  sex: number,
+  area: string,
+  thumb: string,
+  account_alias: string,
+}
+
 export interface GrpcFriendshipRawPayload {
   account: string,
   my_account: string,
@@ -37,6 +59,11 @@ export interface AddFriend {
   time: number,
   data: Friend,
   extend: string,
+}
+
+export interface DeleteFriend {
+  account: string,
+  account_alias: string,
 }
 
 export interface AddFriendBeforeAccept {

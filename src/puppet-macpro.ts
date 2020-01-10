@@ -78,6 +78,9 @@ import {
   AddFriendBeforeAccept,
   MacproFriendInfo,
   MacproUrlLink,
+  DeleteFriend,
+  GrpcFriendshipAcceptedData,
+  GrpcFriendshipAcceptedDetail,
 } from './schemas'
 
 import { RequestClient } from './utils/request'
@@ -105,7 +108,7 @@ import { roomLeaveEventMessageParser } from './pure-function-helpers/room-event-
 import { roomTopicEventMessageParser } from './pure-function-helpers/room-event-topic-message-parser'
 import { messageUrlPayloadParser } from './pure-function-helpers/message-url-payload-parser'
 
-const PRE = 'PUPPET_MACPRO'
+const PRE = 'PuppetMacpro'
 const MEMORY_SLOT_NAME = 'WECHATY_PUPPET_MACPRO'
 
 export interface MacproMemorySlot {
@@ -229,106 +232,33 @@ export class PuppetMacpro extends Puppet {
   }
 
   private async startGrpcListener () {
-    this.grpcGateway.on('reconnect', async () => {
-      this.reconnectThrottleQueue.next('reconnect')
-    })
-
     this.grpcGateway.on('heartbeat', async () => {
       this.emit('watchdog', {
         data: 'heartbeat',
       })
     })
 
-    this.grpcGateway.on('scan', async (dataStr: string) => {
-      const data = JSON.parse(dataStr)
-      if (data && data.status) {
-        this.emit('scan', '', data.status)
-      } else {
+    /**
+     * login and logout callback
+     */
+    this.grpcGateway.on('reconnect', () => this.reconnectThrottleQueue.next('reconnect'))
 
-        const fileBox = FileBox.fromUrl(data.url)
-        const url = await fileBoxToQrcode(fileBox)
-        this.emit('scan', url, ScanStatus.Cancel)
-      }
-    })
+    this.grpcGateway.on('scan', data => this.onScan(data))
 
-    this.grpcGateway.on('login', async dataStr => {
-      log.info(PRE, `
-      ======================================
-                 LOGIN SUCCESS
-      ======================================
-      `)
-      const data: GrpcLoginInfo = JSON.parse(dataStr)
-      const account = data.account
+    this.grpcGateway.on('login', data => this.onLogin(data))
 
-      log.verbose(PRE, `init cache manager`)
-      await CacheManager.init(account)
-      this.cacheManager = CacheManager.Instance
+    this.grpcGateway.on('logout', () => this.onLogout())
 
-      const selfPayload: MacproContactPayload = {
-        account: data.account,
-        accountAlias: data.account_alias || data.account, // wxid
-        city: '',
-        description: '',
-        disturb: '',
-        formName: '',
-        name: data.name,
-        province: '',
-        sex: ContactGender.Unknown,
-        thumb: data.thumb,
-        v1: '',
-      }
-      await this.cacheManager.setContact(selfPayload.accountAlias, selfPayload)
+    this.grpcGateway.on('not-login', data => this.onNotLogin(data))
 
-      if (!this.loginStatus) {
-        await super.login(selfPayload.accountAlias)
-      }
-      this.loginStatus = true
-
-      if (this.memory) {
-        this.memorySlot = {
-          taskId: data.task_id,
-          userName: data.account,
-          wxid: data.account_alias,
-        }
-        await this.memory.set(MEMORY_SLOT_NAME, this.memorySlot)
-        await this.memory.save()
-      }
-
-      await this.login(account)
-
-    })
-
-    this.grpcGateway.on('logout', async () => {
-      log.info(PRE, `
-      ======================================
-                 LOGOUT SUCCESS
-      ======================================
-      `)
-      this.emit('logout', this.selfId())
-      this.emit('reset', 'reset when received logout event.')
-    })
-
-    this.grpcGateway.on('not-login', async (dataStr: string) => {
-      log.verbose(PRE, `
-      ======================================
-               grpc on not-login
-      ======================================
-      `)
-      if (this.memory) {
-        const slot = await this.memory.get(MEMORY_SLOT_NAME)
-        if (slot && slot.userName) {
-          log.silly(PRE, `slot : ${slot.userName}, data str : ${dataStr}`)
-          await this.user.getWeChatQRCode(slot.userName)
-        } else {
-          await this.user.getWeChatQRCode()
-        }
-      } else {
-        await this.user.getWeChatQRCode()
-      }
-    })
-
+    /**
+     * message callback
+     */
     this.grpcGateway.on('message', data => this.onProcessMessage(JSON.parse(data)))
 
+    /**
+     * sync contact and room data callback
+     */
     this.grpcGateway.on('contact-list', data => this.syncContactList(data))
 
     this.grpcGateway.on('room-list', data => this.syncRoomList(data))
@@ -337,215 +267,125 @@ export class PuppetMacpro extends Puppet {
 
     this.grpcGateway.on('room-info', data => this.syncRoomInfo(data))
 
+    this.grpcGateway.on('room-join', data => this.onRoomJoin(data))
+
+    this.grpcGateway.on('room-member', data => this.onRoomMember(data))
+
     this.grpcGateway.on('room-qrcode', (data: string) => {
       const _data: GrpcRoomQrcode = JSON.parse(data)
-      log.silly(PRE, `room-qrcode : ${util.inspect(_data)}`)
       this.room.resolveRoomQrcodeCallback(_data.group_number, _data.qrcode)
     })
 
-    this.grpcGateway.on('room-join', async (data: string) => {
-      const _data: GrpcRoomJoin = JSON.parse(data)
-      log.silly(PRE, `room change info : ${util.inspect(_data)}`)
+    /**
+     * friend request callback
+     */
+    this.grpcGateway.on('new-friend', data => this.onReceiveFriendsRequest(data))
 
-      if (!this.cacheManager) {
-        throw new Error(`no cacheManager`)
+    this.grpcGateway.on('add-friend', data => this.onFriendsRequestBeenAccepted(data))
+
+    this.grpcGateway.on('del-friend', data => this.onDeleteFriend(data))
+
+    this.grpcGateway.on('add-friend-before-accept', data => this.onFriendsRequestBeenNotAccepted(data))
+  }
+
+  /**
+   * all listener functions
+   */
+
+  public async onScan (dataStr: string) {
+    const data = JSON.parse(dataStr)
+    if (data && data.status) {
+      this.emit('scan', '', data.status)
+    } else {
+
+      const fileBox = FileBox.fromUrl(data.url)
+      const url = await fileBoxToQrcode(fileBox)
+      this.emit('scan', url, ScanStatus.Cancel)
+    }
+  }
+
+  public async onLogin (dataStr: string) {
+    log.info(PRE, `
+    ==============================
+            Login Success
+    ==============================
+    `)
+    const data: GrpcLoginInfo = JSON.parse(dataStr)
+    const account = data.account
+
+    log.verbose(PRE, `init cache manager`)
+    await CacheManager.init(account)
+    this.cacheManager = CacheManager.Instance
+
+    const selfPayload: MacproContactPayload = {
+      account: data.account,
+      accountAlias: data.account_alias || data.account, // wxid
+      city: '',
+      description: '',
+      disturb: '',
+      formName: '',
+      name: data.name,
+      province: '',
+      sex: ContactGender.Unknown,
+      thumb: data.thumb,
+      v1: '',
+    }
+    await this.cacheManager.setContact(selfPayload.accountAlias, selfPayload)
+
+    if (!this.loginStatus) {
+      await super.login(selfPayload.accountAlias)
+    }
+    this.loginStatus = true
+
+    if (this.memory) {
+      this.memorySlot = {
+        taskId: data.task_id,
+        userName: data.account,
+        wxid: data.account_alias,
       }
-      const roomId = _data.g_number
-      const roomMembers = await this.cacheManager.getRoomMember(roomId)
-      if (!roomMembers && _data.type === RoomChangeState.JOIN) {
-        await this.room.syncRoomDetailInfo(this.selfId(), _data.g_number)
-      }
-      if (roomMembers && _data.type === RoomChangeState.JOIN) {
-        let memberPayload: MacproRoomMemberPayload
-        if (roomMembers[_data.account]) {
-          memberPayload = roomMembers[_data.account]
-          memberPayload.account = _data.account
-          memberPayload.name = _data.name
-        } else {
-          memberPayload = {
-            account: _data.account,
-            accountAlias: _data.account,
-            city: '',
-            description: '',
-            disturb: '',
-            formName: '',
-            name: _data.name,
-            province: '',
-            sex: ContactGender.Unknown,
-            thumb: '',
-            v1: '',
-          }
-        }
-        roomMembers[_data.account] = memberPayload
-        await this.cacheManager.setRoomMember(roomId, roomMembers)
-        const _contact = await this.cacheManager.getContact(_data.account)
-        if (!_contact) {
-          const contact: MacproContactPayload = {
-            account: _data.account,
-            accountAlias: _data.account,
-            city: '',
-            description: '',
-            disturb: '',
-            formName: '',
-            name: _data.name,
-            province: '',
-            sex: ContactGender.Unknown,
-            thumb: '',
-            v1: '',
-          }
-          await this.cacheManager.setContact(_data.account, contact)
-        }
-      }
-      // TODO: can not get room member account when the member been removed by bot, account = ''
-      /* if (roomMembers && _data.type === RoomChangeState.LEAVE) {
-        const wxid = await this.getAccountId(_data.account)
-        if (wxid === _data.my_account) { // if the bot been removed from this room, we should clear the cache of Room and RoomMember
-          setTimeout(async () => {
-            if (!this.cacheManager) {
-              throw new Error(`no cacheManager`)
-            }
-            await this.cacheManager.deleteRoom(roomId)
-            await this.cacheManager.deleteRoomMember(roomId)
-          }, 5000)
-        } else {
-          const members = await this.cacheManager.getRoomMember(roomId)
-          if (members) {
-            delete members[_data.account]
-            await this.cacheManager.setRoomMember(roomId, members)
-          }
-        }
-      } */
-    })
+      await this.memory.set(MEMORY_SLOT_NAME, this.memorySlot)
+      await this.memory.save()
+    }
 
-    this.grpcGateway.on('room-member', async memberStr => {
-      const members: GrpcRoomMemberPayload[] = JSON.parse(memberStr).memberList
-      const macproMembers: MacproRoomMemberPayload[] = []
-      let payload: { [contactId: string]: MacproRoomMemberPayload } = {}
-      members.map(async member => {
-        if (member.userName) {
-          const roomMemberPayload: MacproRoomMemberPayload = {
-            account: member.userName,
-            accountAlias: member.userName,
-            city: '',
-            description: '',
-            disturb: '',
-            formName: member.displayName,
-            name: member.nickName,
-            province: '',
-            sex: ContactGender.Unknown,
-            thumb: member.bigHeadImgUrl,
-            v1: '',
-          }
-          macproMembers.push(roomMemberPayload)
-          payload[member.userName] = roomMemberPayload
-          if (!this.cacheManager) {
-            throw CacheManageError('ROOM-MEMBER')
-          }
-
-          const _contact = await this.cacheManager.getContact(member.userName)
-          if (!_contact) {
-            const contact: MacproContactPayload = {
-              account: member.userName,
-              accountAlias: member.userName,
-              city: '',
-              description: '',
-              disturb: '',
-              formName: member.displayName,
-              name: member.nickName,
-              province: '',
-              sex: ContactGender.Unknown,
-              thumb: member.bigHeadImgUrl,
-              v1: '',
-            }
-            await this.cacheManager.setContact(member.userName, contact)
-          }
-          await this.cacheManager.setRoomMember(member.number, payload)
-        } else {
-          log.silly(PRE, `can not get member user name`)
-        }
-      })
-
-      this.room.resolveRoomMemberCallback(members[0] && members[0].number, macproMembers)
-    })
-
-    this.grpcGateway.on('new-friend', async (dataStr: string) => {
-      // Friend request => Bot, Bot has not accepted
-      const friendshipRawPayload: GrpcFriendshipRawPayload = JSON.parse(dataStr)
-      const id = uuid()
-      if (!this.cacheManager) {
-        log.verbose(`Can not save friendship raw payload to cache since cache manager is not inited.`)
-        return
-      }
-      const payload = friendshipReceiveEventMessageParser(friendshipRawPayload)
-      if (payload) {
-        await this.cacheManager.setFriendshipRawPayload(id, payload)
-        this.emit('friendship', id)
-      }
-    })
-
-    this.grpcGateway.on('add-friend', async (dataStr: string) => {
-      // Friend request => Contact, Contact has accepted
-      log.silly(PRE, `add-friend data : ${dataStr}`)
-      const newContactBox = JSON.parse(dataStr)
-      const newContact = JSON.parse(newContactBox.data)
-      const contact: MacproContactPayload = {
-        account: newContact.account,
-        accountAlias: newContact.account_alias || newContact.account,
-        city: newContact.area ? newContact.area.split('_')[1] : '',
-        description: '',
-        disturb: '',
-        formName: '',
-        name: newContact.name,
-        province: newContact.area ? newContact.area.split('_')[0] : '',
-        sex: Number(newContact.sex) as ContactGender,
-        thumb: newContact.thumb,
-        v1: newContact.v1,
-      }
-      if (this.cacheManager) {
-        await this.cacheManager.setContact(contact.accountAlias, contact)
-      }
-    })
-
-    this.grpcGateway.on('del-friend', async (dataStr: string) => {
-      log.silly(PRE, `del-friend : ${dataStr}`)
-      const data = JSON.parse(dataStr)
-      if (data && data.account) {
-        if (isContactId(data.account)) {
-          if (this.cacheManager) {
-            await this.cacheManager.deleteContact(data.account)
-          }
-        }
-      }
-    })
-
-    this.grpcGateway.on('add-friend-before-accept', (dataStr: string) => {
-      // Friend request => Contact, Contact has not accepted
-      log.silly(PRE, `add-friend-before-accept data : ${dataStr}`) // to_account -> WeChat account
-
-      const data: AddFriendBeforeAccept = JSON.parse(dataStr)
-      const phoneOrAccount = data.phone || data.to_name
-
-      const unique = this.selfId() + phoneOrAccount
-      const cb = this.addFriendCB[unique]
-      if (cb) {
-        const friendInfo: MacproFriendInfo = {
-          friendAccount: data.to_name,
-          friendPhone: data.phone,
-          friendThumb: data.to_thumb,
-          myAccount: data.my_account,
-        }
-        cb(friendInfo)
-      }
-    })
+    await this.login(account)
   }
 
   protected async login (selfId: string): Promise<void> {
-    log.verbose(PRE, `login success, loading contact and room data.`)
+    log.verbose(PRE, `login success, start loading contact and room data.`)
 
     const contactStatus = await this.contact.contactList(selfId)
     await this.room.syncRoomList(selfId)
     if (contactStatus === RequestStatus.Fail) {
       throw new Error(`load contact list failed.`)
+    }
+  }
+
+  public onLogout () {
+    log.info(PRE, `
+    ==============================
+            Logout Success
+    ==============================
+    `)
+    this.emit('logout', this.selfId())
+    this.emit('reset', 'reset when received logout event.')
+  }
+
+  public async onNotLogin (dataStr: string) {
+    log.verbose(PRE, `
+    ==============================
+          grpc on not-login
+    ==============================
+    `)
+    if (this.memory) {
+      const slot = await this.memory.get(MEMORY_SLOT_NAME)
+      if (slot && slot.userName) {
+        log.silly(PRE, `slot : ${slot.userName}, data str : ${dataStr}`)
+        await this.user.getWeChatQRCode(slot.userName)
+      } else {
+        await this.user.getWeChatQRCode()
+      }
+    } else {
+      await this.user.getWeChatQRCode()
     }
   }
 
@@ -638,13 +478,14 @@ export class PuppetMacpro extends Puppet {
       await this.cacheManager.setContact(contact.accountAlias, contact)
     }))
     if (currentPage * 100 > total) {
-      log.verbose(PRE, `contact data loaded. contact length: ${info.length}`)
+      log.verbose(PRE, `Contact data loaded. contact length: ${total}`)
     }
   }
 
   public async syncRoomList (data: string) {
     const _data: GrpcSyncRoomListBox = JSON.parse(data)
     const roomList: GrpcSyncRoomList[] = JSON.parse(_data.info)
+    log.verbose(PRE, `syncRoomList(), length of loaded room : ${roomList.length}`)
     if (roomList && roomList.length === 0) {
       log.warn(`
         This is a new account which login wechaty based on Mac protocal first time,
@@ -668,8 +509,8 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async syncContactInfo (data: string) {
-    log.verbose(PRE, `listen on contact detail info : ${data}`)
     const contactInfo: GrpcContactInfo = JSON.parse(data)
+    log.verbose(PRE, `syncContactInfo(), contact id : ${contactInfo.username}`)
     if (this.cacheManager) {
       const callback = this.getCallback(contactInfo.username)
       const contact: MacproContactPayload = {
@@ -692,8 +533,8 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async syncRoomInfo (data: string) {
-    log.verbose(PRE, `listen on room detail info`)
     const roomDetailInfo: GrpcRoomPayload = JSON.parse(data)
+    log.verbose(PRE, `syncRoomInfo(), room id : ${roomDetailInfo.number}`)
     if (this.cacheManager) {
       let cacheRoom = await this.cacheManager.getRoom(roomDetailInfo.number)
       if (!cacheRoom) {
@@ -720,6 +561,187 @@ export class PuppetMacpro extends Puppet {
         await this.cacheManager.setRoom(cacheRoom!.number, cacheRoom!)
         this.room.resolveRoomCallback(cacheRoom!.number, cacheRoom!)
       })
+    }
+  }
+
+  public async onRoomJoin (data: string) {
+    const _data: GrpcRoomJoin = JSON.parse(data)
+    log.silly(PRE, `onRoomJoin(), new member's name : ${_data.name}, wxid: ${_data.account}`)
+
+    if (!this.cacheManager) {
+      throw new Error(`no cacheManager`)
+    }
+    const roomId = _data.g_number
+    const roomMembers = await this.cacheManager.getRoomMember(roomId)
+    if (!roomMembers && _data.type === RoomChangeState.JOIN) {
+      await this.room.syncRoomDetailInfo(this.selfId(), _data.g_number)
+    }
+    if (roomMembers && _data.type === RoomChangeState.JOIN) {
+      let memberPayload: MacproRoomMemberPayload
+      if (roomMembers[_data.account]) {
+        memberPayload = roomMembers[_data.account]
+        memberPayload.account = _data.account
+        memberPayload.name = _data.name
+      } else {
+        memberPayload = {
+          account: _data.account,
+          accountAlias: _data.account,
+          city: '',
+          description: '',
+          disturb: '',
+          formName: '',
+          name: _data.name,
+          province: '',
+          sex: ContactGender.Unknown,
+          thumb: '',
+          v1: '',
+        }
+      }
+      roomMembers[_data.account] = memberPayload
+      await this.cacheManager.setRoomMember(roomId, roomMembers)
+      const _contact = await this.cacheManager.getContact(_data.account)
+      if (!_contact) {
+        const contact: MacproContactPayload = {
+          account: _data.account,
+          accountAlias: _data.account,
+          city: '',
+          description: '',
+          disturb: '',
+          formName: '',
+          name: _data.name,
+          province: '',
+          sex: ContactGender.Unknown,
+          thumb: '',
+          v1: '',
+        }
+        await this.cacheManager.setContact(_data.account, contact)
+      }
+    }
+  }
+
+  public async onRoomMember (members: string) {
+    log.silly(PRE, `onRoomMember`)
+    const _members: GrpcRoomMemberPayload[] = JSON.parse(members).memberList
+    const macproMembers: MacproRoomMemberPayload[] = []
+    let payload: { [contactId: string]: MacproRoomMemberPayload } = {}
+    _members.map(async member => {
+      if (member.userName) {
+        const roomMemberPayload: MacproRoomMemberPayload = {
+          account: member.userName,
+          accountAlias: member.userName,
+          city: '',
+          description: '',
+          disturb: '',
+          formName: member.displayName,
+          name: member.nickName,
+          province: '',
+          sex: ContactGender.Unknown,
+          thumb: member.bigHeadImgUrl,
+          v1: '',
+        }
+        macproMembers.push(roomMemberPayload)
+        payload[member.userName] = roomMemberPayload
+        if (!this.cacheManager) {
+          throw CacheManageError('ROOM-MEMBER')
+        }
+
+        const _contact = await this.cacheManager.getContact(member.userName)
+        if (!_contact) {
+          const contact: MacproContactPayload = {
+            account: member.userName,
+            accountAlias: member.userName,
+            city: '',
+            description: '',
+            disturb: '',
+            formName: member.displayName,
+            name: member.nickName,
+            province: '',
+            sex: ContactGender.Unknown,
+            thumb: member.bigHeadImgUrl,
+            v1: '',
+          }
+          await this.cacheManager.setContact(member.userName, contact)
+        }
+        await this.cacheManager.setRoomMember(member.number, payload)
+      } else {
+        log.silly(PRE, `can not get member user name`)
+      }
+    })
+
+    this.room.resolveRoomMemberCallback(_members[0] && _members[0].number, macproMembers)
+  }
+
+  public async onReceiveFriendsRequest (data: string) {
+    const friendshipRawPayload: GrpcFriendshipRawPayload = JSON.parse(data)
+    log.silly(PRE, `onReceiveFriendsRequest(), friend name : ${friendshipRawPayload.nickname}`)
+    const id = uuid()
+    if (!this.cacheManager) {
+      log.verbose(`Can not save friendship raw payload to cache since cache manager is not inited.`)
+      return
+    }
+    const payload = friendshipReceiveEventMessageParser(friendshipRawPayload)
+    if (payload) {
+      await this.cacheManager.setFriendshipRawPayload(id, payload)
+      this.emit('friendship', id)
+    }
+  }
+
+  public async onFriendsRequestBeenAccepted (data: string) {
+    const grpcFriendshipAcceptedData: GrpcFriendshipAcceptedData = JSON.parse(data)
+    const type = grpcFriendshipAcceptedData.type
+    if (type === 1) {
+      log.silly(`The bot's friend request has been accepted.`)
+    } else {
+      log.silly(`The bot accepted the friend request from others.`)
+    }
+    log.silly(PRE, `onFriendsRequestBeenAccepted(), new contact info : ${grpcFriendshipAcceptedData.data}`)
+    const newContact: GrpcFriendshipAcceptedDetail = JSON.parse(grpcFriendshipAcceptedData.data)
+    const contact: MacproContactPayload = {
+      account: newContact.account,
+      accountAlias: newContact.account_alias || newContact.account,
+      city: newContact.area ? newContact.area.split('_')[1] : '',
+      description: '',
+      disturb: '',
+      formName: '',
+      name: newContact.name,
+      province: newContact.area ? newContact.area.split('_')[0] : '',
+      sex: Number(newContact.sex) as ContactGender,
+      thumb: newContact.thumb,
+      v1: grpcFriendshipAcceptedData.v1,
+    }
+    if (this.cacheManager) {
+      await this.cacheManager.setContact(contact.accountAlias, contact)
+    }
+  }
+
+  public async onDeleteFriend (data: string) {
+    const _data: DeleteFriend = JSON.parse(data)
+    log.silly(PRE, `onDeleteFriend(), user: ${_data.account} has been deleted by bot.`)
+    if (_data && _data.account) {
+      if (isContactId(_data.account)) {
+        if (this.cacheManager) {
+          await this.cacheManager.deleteContact(_data.account)
+        }
+      }
+    }
+  }
+
+  public async onFriendsRequestBeenNotAccepted (data: string) {
+    log.silly(PRE, `onFriendsRequestBeenNotAccepted(), data : ${data}`) // to_account -> WeChat account
+
+    const _data: AddFriendBeforeAccept = JSON.parse(data)
+    const phoneOrAccount = _data.phone || _data.to_name
+
+    const unique = this.selfId() + phoneOrAccount
+    const cb = this.addFriendCB[unique]
+    if (cb) {
+      const friendInfo: MacproFriendInfo = {
+        friendAccount: _data.to_name,
+        friendPhone: _data.phone,
+        friendThumb: _data.to_thumb,
+        myAccount: _data.my_account,
+      }
+      cb(friendInfo)
     }
   }
 
@@ -1026,10 +1048,14 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async messageRawPayloadParser (rawPayload: MacproMessagePayload): Promise<MessagePayload> {
-    log.verbose(PRE, 'messagePayload(%s)', JSON.stringify(rawPayload))
+    log.verbose(PRE, 'messageRawPayloadParser(%s)', JSON.stringify(rawPayload))
 
     const payload = await messageRawPayloadParser(rawPayload)
-
+    if (payload.mentionIdList && payload.mentionIdList.length === 1 && payload.mentionIdList[0] === 'announcement@all') {
+      const memberIds = await this.roomMemberList(payload.roomId!)
+      payload.mentionIdList = memberIds.filter(m => m !== payload.fromId)
+      payload.text = `${payload.text || ''}`
+    }
     return payload
   }
 

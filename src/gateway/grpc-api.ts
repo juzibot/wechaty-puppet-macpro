@@ -17,7 +17,7 @@ import { Subscription } from 'rxjs'
 import { isRoomId } from '../pure-function-helpers'
 import { ScanStatus } from 'wechaty-puppet'
 
-const PRE = 'GRPC_GATEWAY'
+const PRE = 'GrpcGateway'
 
 export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-list' | 'room-member' | 'room-create' | 'room-join' | 'room-qrcode' | 'reconnect' | 'invalid-token' | 'add-friend' | 'del-friend' | 'add-friend-before-accept' | 'heartbeat' | 'contact-info' | 'room-info'
 
@@ -48,7 +48,6 @@ export class GrpcGateway extends EventEmitter {
 
     this.throttleQueue = new ThrottleQueue(30 * 1000)
     this.throttleQueueSubscription = this.throttleQueue.subscribe(() => {
-      log.silly(PRE, `throttleQueue emit heartbeat.`)
       this.emit('heartbeat')
     })
   }
@@ -274,7 +273,13 @@ export class GrpcGateway extends EventEmitter {
       log.error(PRE, 'grpc server close')
     })
     stream.on('data', async (data: MessageStream) => {
-      log.silly(PRE, `event code :  ${data.getCode()}`)
+      if (data.getCode() !== 'heartbeat') {
+        if (data.getCode() === 'callback-send') {
+          log.silly(PRE, `callback type:【sync-info】`)
+        } else {
+          log.silly(PRE, `callback type:【${data.getCode()}】`)
+        }
+      }
 
       if (this.debounceQueue && this.throttleQueue) {
         this.debounceQueue.next(data)
@@ -370,13 +375,9 @@ export class GrpcGateway extends EventEmitter {
             this.throttleQueue.next(data)
           }
           break
-        case 'server-heartbeat':
-          log.silly(PRE, `Set server heartbeat time.`)
-          break
         default:
           const code = data.getCode()
-          log.silly(`the default code : ${code}`)
-          log.error(PRE, `Can not get the notify`)
+          log.error(PRE, `Can not get the notify code : ${code}`)
       }
     })
     this.stream = stream
