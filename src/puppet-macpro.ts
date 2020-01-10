@@ -108,7 +108,7 @@ import { roomLeaveEventMessageParser } from './pure-function-helpers/room-event-
 import { roomTopicEventMessageParser } from './pure-function-helpers/room-event-topic-message-parser'
 import { messageUrlPayloadParser } from './pure-function-helpers/message-url-payload-parser'
 
-const PRE = 'PUPPET_MACPRO'
+const PRE = 'PuppetMacpro'
 const MEMORY_SLOT_NAME = 'WECHATY_PUPPET_MACPRO'
 
 export interface MacproMemorySlot {
@@ -267,7 +267,7 @@ export class PuppetMacpro extends Puppet {
 
     this.grpcGateway.on('room-info', data => this.syncRoomInfo(data))
 
-    this.grpcGateway.on('room-join', data => this.onRoomJoinOrLeave(data))
+    this.grpcGateway.on('room-join', data => this.onRoomJoin(data))
 
     this.grpcGateway.on('room-member', data => this.onRoomMember(data))
 
@@ -306,9 +306,9 @@ export class PuppetMacpro extends Puppet {
 
   public async onLogin (dataStr: string) {
     log.info(PRE, `
-    ======================================
-                LOGIN SUCCESS
-    ======================================
+    ==============================
+            Login Success
+    ==============================
     `)
     const data: GrpcLoginInfo = JSON.parse(dataStr)
     const account = data.account
@@ -351,7 +351,7 @@ export class PuppetMacpro extends Puppet {
   }
 
   protected async login (selfId: string): Promise<void> {
-    log.verbose(PRE, `login success, loading contact and room data.`)
+    log.verbose(PRE, `login success, start loading contact and room data.`)
 
     const contactStatus = await this.contact.contactList(selfId)
     await this.room.syncRoomList(selfId)
@@ -362,9 +362,9 @@ export class PuppetMacpro extends Puppet {
 
   public onLogout () {
     log.info(PRE, `
-    ======================================
-                LOGOUT SUCCESS
-    ======================================
+    ==============================
+            Logout Success
+    ==============================
     `)
     this.emit('logout', this.selfId())
     this.emit('reset', 'reset when received logout event.')
@@ -372,9 +372,9 @@ export class PuppetMacpro extends Puppet {
 
   public async onNotLogin (dataStr: string) {
     log.verbose(PRE, `
-    ======================================
-              grpc on not-login
-    ======================================
+    ==============================
+          grpc on not-login
+    ==============================
     `)
     if (this.memory) {
       const slot = await this.memory.get(MEMORY_SLOT_NAME)
@@ -478,14 +478,14 @@ export class PuppetMacpro extends Puppet {
       await this.cacheManager.setContact(contact.accountAlias, contact)
     }))
     if (currentPage * 100 > total) {
-      log.verbose(PRE, `contact data loaded. contact length: ${info.length}`)
+      log.verbose(PRE, `Contact data loaded. contact length: ${total}`)
     }
   }
 
   public async syncRoomList (data: string) {
-    log.verbose(PRE, `syncRoomList()`)
     const _data: GrpcSyncRoomListBox = JSON.parse(data)
     const roomList: GrpcSyncRoomList[] = JSON.parse(_data.info)
+    log.verbose(PRE, `syncRoomList(), length of loaded room : ${roomList.length}`)
     if (roomList && roomList.length === 0) {
       log.warn(`
         This is a new account which login wechaty based on Mac protocal first time,
@@ -564,9 +564,9 @@ export class PuppetMacpro extends Puppet {
     }
   }
 
-  public async onRoomJoinOrLeave (data: string) {
+  public async onRoomJoin (data: string) {
     const _data: GrpcRoomJoin = JSON.parse(data)
-    log.silly(PRE, `onRoomJoinOrLeave : ${util.inspect(_data)}`)
+    log.silly(PRE, `onRoomJoin(), new member's name : ${_data.name}, wxid: ${_data.account}`)
 
     if (!this.cacheManager) {
       throw new Error(`no cacheManager`)
@@ -617,25 +617,6 @@ export class PuppetMacpro extends Puppet {
         await this.cacheManager.setContact(_data.account, contact)
       }
     }
-    // TODO: can not get room member account when the member been removed by bot, account = ''
-    /* if (roomMembers && _data.type === RoomChangeState.LEAVE) {
-      const wxid = await this.getAccountId(_data.account)
-      if (wxid === _data.my_account) { // if the bot been removed from this room, we should clear the cache of Room and RoomMember
-        setTimeout(async () => {
-          if (!this.cacheManager) {
-            throw new Error(`no cacheManager`)
-          }
-          await this.cacheManager.deleteRoom(roomId)
-          await this.cacheManager.deleteRoomMember(roomId)
-        }, 5000)
-      } else {
-        const members = await this.cacheManager.getRoomMember(roomId)
-        if (members) {
-          delete members[_data.account]
-          await this.cacheManager.setRoomMember(roomId, members)
-        }
-      }
-    } */
   }
 
   public async onRoomMember (members: string) {
@@ -691,8 +672,8 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async onReceiveFriendsRequest (data: string) {
-    log.silly(PRE, `onReceiveFriendsRequest : ${data}`)
     const friendshipRawPayload: GrpcFriendshipRawPayload = JSON.parse(data)
+    log.silly(PRE, `onReceiveFriendsRequest(), friend name : ${friendshipRawPayload.nickname}`)
     const id = uuid()
     if (!this.cacheManager) {
       log.verbose(`Can not save friendship raw payload to cache since cache manager is not inited.`)
@@ -746,7 +727,7 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async onFriendsRequestBeenNotAccepted (data: string) {
-    log.silly(PRE, `onFriendsRequestBeenNotAccepted : ${data}`) // to_account -> WeChat account
+    log.silly(PRE, `onFriendsRequestBeenNotAccepted(), data : ${data}`) // to_account -> WeChat account
 
     const _data: AddFriendBeforeAccept = JSON.parse(data)
     const phoneOrAccount = _data.phone || _data.to_name
@@ -1067,7 +1048,7 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async messageRawPayloadParser (rawPayload: MacproMessagePayload): Promise<MessagePayload> {
-    log.verbose(PRE, 'messagePayload(%s)', JSON.stringify(rawPayload))
+    log.verbose(PRE, 'messageRawPayloadParser(%s)', JSON.stringify(rawPayload))
 
     const payload = await messageRawPayloadParser(rawPayload)
     if (payload.mentionIdList && payload.mentionIdList.length === 1 && payload.mentionIdList[0] === 'announcement@all') {

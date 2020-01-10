@@ -9,7 +9,7 @@ export interface RequestOption {
   apiName: string,
 }
 
-const PRE = 'REQUEST'
+const PRE = 'RequestClient'
 
 export class RequestClient {
 
