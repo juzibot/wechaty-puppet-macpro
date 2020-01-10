@@ -1061,7 +1061,11 @@ export class PuppetMacpro extends Puppet {
     log.verbose(PRE, 'messagePayload(%s)', JSON.stringify(rawPayload))
 
     const payload = await messageRawPayloadParser(rawPayload)
-
+    if (payload.mentionIdList && payload.mentionIdList.length === 1 && payload.mentionIdList[0] === 'announcement@all') {
+      const memberIds = await this.roomMemberList(payload.roomId!)
+      payload.mentionIdList = memberIds.filter(m => m !== payload.fromId)
+      payload.text = `${payload.text || ''}`
+    }
     return payload
   }
 
