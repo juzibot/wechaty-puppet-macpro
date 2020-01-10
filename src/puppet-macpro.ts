@@ -78,6 +78,9 @@ import {
   AddFriendBeforeAccept,
   MacproFriendInfo,
   MacproUrlLink,
+  DeleteFriend,
+  GrpcFriendshipAcceptedData,
+  GrpcFriendshipAcceptedDetail,
 } from './schemas'
 
 import { RequestClient } from './utils/request'
@@ -480,7 +483,7 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async syncRoomList (data: string) {
-    log.verbose(PRE, `syncRoomList : ${data}`)
+    log.verbose(PRE, `syncRoomList()`)
     const _data: GrpcSyncRoomListBox = JSON.parse(data)
     const roomList: GrpcSyncRoomList[] = JSON.parse(_data.info)
     if (roomList && roomList.length === 0) {
@@ -506,8 +509,8 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async syncContactInfo (data: string) {
-    log.verbose(PRE, `syncContactInfo : ${data}`)
     const contactInfo: GrpcContactInfo = JSON.parse(data)
+    log.verbose(PRE, `syncContactInfo(), contact id : ${contactInfo.username}`)
     if (this.cacheManager) {
       const callback = this.getCallback(contactInfo.username)
       const contact: MacproContactPayload = {
@@ -530,8 +533,8 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async syncRoomInfo (data: string) {
-    log.verbose(PRE, `syncRoomInfo : ${data}`)
     const roomDetailInfo: GrpcRoomPayload = JSON.parse(data)
+    log.verbose(PRE, `syncRoomInfo(), room id : ${roomDetailInfo.number}`)
     if (this.cacheManager) {
       let cacheRoom = await this.cacheManager.getRoom(roomDetailInfo.number)
       if (!cacheRoom) {
@@ -703,9 +706,15 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async onFriendsRequestBeenAccepted (data: string) {
-    log.silly(PRE, `onFriendsRequestBeenAccepted : ${data}`)
-    const newContactBox = JSON.parse(data)
-    const newContact = JSON.parse(newContactBox.data)
+    const grpcFriendshipAcceptedData: GrpcFriendshipAcceptedData = JSON.parse(data)
+    const type = grpcFriendshipAcceptedData.type
+    if (type === 1) {
+      log.silly(`The bot's friend request has been accepted.`)
+    } else {
+      log.silly(`The bot accepted the friend request from others.`)
+    }
+    log.silly(PRE, `onFriendsRequestBeenAccepted(), new contact info : ${grpcFriendshipAcceptedData.data}`)
+    const newContact: GrpcFriendshipAcceptedDetail = JSON.parse(grpcFriendshipAcceptedData.data)
     const contact: MacproContactPayload = {
       account: newContact.account,
       accountAlias: newContact.account_alias || newContact.account,
@@ -717,7 +726,7 @@ export class PuppetMacpro extends Puppet {
       province: newContact.area ? newContact.area.split('_')[0] : '',
       sex: Number(newContact.sex) as ContactGender,
       thumb: newContact.thumb,
-      v1: newContact.v1,
+      v1: grpcFriendshipAcceptedData.v1,
     }
     if (this.cacheManager) {
       await this.cacheManager.setContact(contact.accountAlias, contact)
@@ -725,8 +734,8 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async onDeleteFriend (data: string) {
-    log.silly(PRE, `onDeleteFriend : ${data}`)
-    const _data = JSON.parse(data)
+    const _data: DeleteFriend = JSON.parse(data)
+    log.silly(PRE, `onDeleteFriend(), user: ${_data.account} has been deleted by bot.`)
     if (_data && _data.account) {
       if (isContactId(_data.account)) {
         if (this.cacheManager) {
