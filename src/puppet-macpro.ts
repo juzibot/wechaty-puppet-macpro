@@ -469,7 +469,7 @@ export class PuppetMacpro extends Puppet {
         province: _contact.area ? _contact.area.split('_')[0] : '',
         sex: parseInt(_contact.sex, 10) as ContactGender,
         thumb: _contact.thumb,
-        v1: _contact.v1,
+        v1: _contact.v1 || 'v1_mock_data',
       }
 
       if (!this.cacheManager) {
