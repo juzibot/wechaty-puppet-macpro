@@ -42,7 +42,7 @@ export default class MacproContact {
       province: res.area ? res.area.split('_')[0] : '',
       sex: parseInt(res.sex, 10) as ContactGender,
       thumb: res.thumb,
-      v1: res.v1 || '',
+      v1: res.v1 || 'v1_mock_data',
     }
 
     return contactRawPayload
