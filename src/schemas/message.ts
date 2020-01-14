@@ -10,7 +10,7 @@ export interface GrpcMessagePayload {
   to_name: string,
   content: string,
   voice_len?: number,
-  messageId?: string,
+  msgid: string,
   content_type?: MacproMessageType,
   send_time: number,
 }

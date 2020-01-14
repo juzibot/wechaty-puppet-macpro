@@ -132,3 +132,8 @@ export enum CallbackType {
   RoomList      = 7,
   ContactOrRoom = 182,
 }
+
+export enum AcceptedType {
+  BOT = 1,
+  OTHERS = 2,
+}

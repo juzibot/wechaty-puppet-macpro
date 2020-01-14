@@ -1,4 +1,3 @@
-import { v4 as uuid } from 'uuid'
 import { MacproMessagePayload, GrpcFriendshipRawPayload } from '../schemas'
 
 import { isPayload } from './is-type'
@@ -101,14 +100,12 @@ export function friendshipReceiveEventMessageParser (
   rawPayload: GrpcFriendshipRawPayload
 ): FriendshipPayload | null {
 
-  const id = uuid()
   const friendshipPayload: FriendshipPayloadReceive = {
-    contactId : rawPayload.account,
+    contactId : rawPayload.account || rawPayload.account_alias,
     hello     : rawPayload.check_msg,
-    id,
+    id: rawPayload.account || rawPayload.account_alias,
     stranger  : rawPayload.encodeUserName,
     ticket    : rawPayload.encodeUserName,
-    // TODO: needs to add timestamp here.
     timestamp : Date.now(),
     type      : FriendshipType.Receive,
   }

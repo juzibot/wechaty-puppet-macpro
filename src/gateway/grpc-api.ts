@@ -314,6 +314,11 @@ export class GrpcGateway extends EventEmitter {
                   status: ScanStatus.Confirmed,
                 }
                 this.emit('scan', JSON.stringify(data))
+              } else if (scanStr.status === 7) {
+                const data = {
+                  status: ScanStatus.Waiting,
+                }
+                this.emit('scan', JSON.stringify(data))
               }
               break
             default:

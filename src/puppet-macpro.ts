@@ -1,33 +1,10 @@
-/**
- *   Wechaty - https://github.com/chatie/wechaty
- *
- *   @copyright 2016-2018 Huan LI <zixia@zixia.net>
- *
- *   Licensed under the Apache License, Version 2.0 (the "License")
- *   you may not use this file except in compliance with the License.
- *   You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *   Unless required by applicable law or agreed to in writing, software
- *   distributed under the License is distributed on an "AS IS'
- *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *   See the License for the specific language governing permissions and
- *   limitations under the License.
- *
- */
-
 import { FileBox } from 'file-box'
 
 import flatten  from 'array-flatten'
 
 import path from 'path'
 
-import util from 'util' // 打印对象用的
-
 import LRU from 'lru-cache'
-
-import { v4 as uuid } from 'uuid'
 
 import {
   ContactGender,
@@ -81,6 +58,7 @@ import {
   DeleteFriend,
   GrpcFriendshipAcceptedData,
   GrpcFriendshipAcceptedDetail,
+  AcceptedType,
 } from './schemas'
 
 import { RequestClient } from './utils/request'
@@ -182,8 +160,8 @@ export class PuppetMacpro extends Puppet {
       this.message = new MacproMessage(this.requestClient)
       this.room = new MacproRoom(this.requestClient)
 
-      this.syncRoomQueue = new DelayQueueExecutor(200)
-      this.syncContactQueue = new DelayQueueExecutor(200)
+      this.syncRoomQueue = new DelayQueueExecutor(50)
+      this.syncContactQueue = new DelayQueueExecutor(50)
 
       this.reconnectThrottleQueue = new ThrottleQueue<string>(5000)
       this.reconnectThrottleQueue.subscribe(async reason => {
@@ -402,7 +380,7 @@ export class PuppetMacpro extends Puppet {
       return
     }
 
-    const messageId = uuid()
+    const messageId = messagePayload.msgid
 
     const payload: MacproMessagePayload = {
       ...messagePayload,
@@ -674,25 +652,27 @@ export class PuppetMacpro extends Puppet {
   public async onReceiveFriendsRequest (data: string) {
     const friendshipRawPayload: GrpcFriendshipRawPayload = JSON.parse(data)
     log.silly(PRE, `onReceiveFriendsRequest(), friend name : ${friendshipRawPayload.nickname}`)
-    const id = uuid()
+
     if (!this.cacheManager) {
       log.verbose(`Can not save friendship raw payload to cache since cache manager is not inited.`)
       return
     }
     const payload = friendshipReceiveEventMessageParser(friendshipRawPayload)
     if (payload) {
-      await this.cacheManager.setFriendshipRawPayload(id, payload)
-      this.emit('friendship', id)
+      await this.cacheManager.setFriendshipRawPayload(payload.contactId, payload)
+      this.emit('friendship', payload.contactId)
     }
   }
 
   public async onFriendsRequestBeenAccepted (data: string) {
     const grpcFriendshipAcceptedData: GrpcFriendshipAcceptedData = JSON.parse(data)
     const type = grpcFriendshipAcceptedData.type
-    if (type === 1) {
+    if (type === AcceptedType.BOT) {
       log.silly(`The bot's friend request has been accepted.`)
-    } else {
+    } else if (type === AcceptedType.OTHERS) {
       log.silly(`The bot accepted the friend request from others.`)
+    } else {
+      throw new Error(`Can not parse this type : ${type}, data: ${data}`)
     }
     log.silly(PRE, `onFriendsRequestBeenAccepted(), new contact info : ${grpcFriendshipAcceptedData.data}`)
     const newContact: GrpcFriendshipAcceptedDetail = JSON.parse(grpcFriendshipAcceptedData.data)
@@ -1185,7 +1165,6 @@ export class PuppetMacpro extends Puppet {
     log.verbose(PRE, 'onMacproMessageRoomEventTopic({id=%s})', rawPayload.messageId)
 
     const roomTopicEvent = roomTopicEventMessageParser(rawPayload)
-    log.silly(`roomTopicEvent : ${JSON.stringify(roomTopicEvent)}`)
     if (roomTopicEvent) {
       const changerName = roomTopicEvent.changerName
       const newTopic    = roomTopicEvent.topic
@@ -1226,7 +1205,7 @@ export class PuppetMacpro extends Puppet {
     receiver  : Receiver,
     contactId : string,
   ): Promise<void> {
-    log.verbose(PRE, 'messageSend("%s", %s)', util.inspect(receiver), contactId)
+    log.verbose(PRE, 'messageSend("%s", %s)', receiver, contactId)
 
     const contactIdOrRoomId =  receiver.roomId || receiver.contactId
     await this.message.sendContact(this.selfId(), contactIdOrRoomId!, contactId)
@@ -1415,28 +1394,12 @@ export class PuppetMacpro extends Puppet {
 
   public async roomList (): Promise<string[]> {
     log.verbose(PRE, 'roomList()')
-    let _roomList: string[] = []
 
     if (!this.cacheManager) {
       throw CacheManageError(`roomList()`)
     }
     const roomIdList = await this.cacheManager.getRoomIds()
-    log.verbose(PRE, `roomList() length = ${roomIdList.length}`)
-    await Promise.all(roomIdList.map(async roomId => {
-      if (!this.cacheManager) {
-        throw CacheManageError(`roomList()`)
-      }
-
-      const roomMembers = await this.cacheManager.getRoomMember(roomId)
-
-      if (roomMembers && Object.keys(roomMembers).length > 0) {
-        _roomList.push(roomId)
-      } else {
-        await this.roomRawPayload(roomId)
-      }
-
-    }))
-    return _roomList
+    return roomIdList
   }
 
   public async roomMemberList (roomId: string) : Promise<string[]> {
