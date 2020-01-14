@@ -182,8 +182,8 @@ export class PuppetMacpro extends Puppet {
       this.message = new MacproMessage(this.requestClient)
       this.room = new MacproRoom(this.requestClient)
 
-      this.syncRoomQueue = new DelayQueueExecutor(200)
-      this.syncContactQueue = new DelayQueueExecutor(200)
+      this.syncRoomQueue = new DelayQueueExecutor(50)
+      this.syncContactQueue = new DelayQueueExecutor(50)
 
       this.reconnectThrottleQueue = new ThrottleQueue<string>(5000)
       this.reconnectThrottleQueue.subscribe(async reason => {
@@ -1415,28 +1415,12 @@ export class PuppetMacpro extends Puppet {
 
   public async roomList (): Promise<string[]> {
     log.verbose(PRE, 'roomList()')
-    let _roomList: string[] = []
 
     if (!this.cacheManager) {
       throw CacheManageError(`roomList()`)
     }
     const roomIdList = await this.cacheManager.getRoomIds()
-    log.verbose(PRE, `roomList() length = ${roomIdList.length}`)
-    await Promise.all(roomIdList.map(async roomId => {
-      if (!this.cacheManager) {
-        throw CacheManageError(`roomList()`)
-      }
-
-      const roomMembers = await this.cacheManager.getRoomMember(roomId)
-
-      if (roomMembers && Object.keys(roomMembers).length > 0) {
-        _roomList.push(roomId)
-      } else {
-        await this.roomRawPayload(roomId)
-      }
-
-    }))
-    return _roomList
+    return roomIdList
   }
 
   public async roomMemberList (roomId: string) : Promise<string[]> {
