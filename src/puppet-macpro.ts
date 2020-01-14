@@ -6,8 +6,6 @@ import path from 'path'
 
 import LRU from 'lru-cache'
 
-import { v4 as uuid } from 'uuid'
-
 import {
   ContactGender,
   ContactPayload,
@@ -60,6 +58,7 @@ import {
   DeleteFriend,
   GrpcFriendshipAcceptedData,
   GrpcFriendshipAcceptedDetail,
+  AcceptedType,
 } from './schemas'
 
 import { RequestClient } from './utils/request'
@@ -370,7 +369,7 @@ export class PuppetMacpro extends Puppet {
 
   protected async onProcessMessage (messagePayload: GrpcPrivateMessagePayload | GrpcPublicMessagePayload) {
 
-    log.verbose(PRE, `onProcessMessage(${JSON.stringify(messagePayload)})`)
+    log.verbose(PRE, `onProcessMessage()`)
     const contentType = messagePayload.content_type
 
     if (!contentType) {
@@ -653,25 +652,27 @@ export class PuppetMacpro extends Puppet {
   public async onReceiveFriendsRequest (data: string) {
     const friendshipRawPayload: GrpcFriendshipRawPayload = JSON.parse(data)
     log.silly(PRE, `onReceiveFriendsRequest(), friend name : ${friendshipRawPayload.nickname}`)
-    const id = uuid()
+
     if (!this.cacheManager) {
       log.verbose(`Can not save friendship raw payload to cache since cache manager is not inited.`)
       return
     }
     const payload = friendshipReceiveEventMessageParser(friendshipRawPayload)
     if (payload) {
-      await this.cacheManager.setFriendshipRawPayload(id, payload)
-      this.emit('friendship', id)
+      await this.cacheManager.setFriendshipRawPayload(payload.contactId, payload)
+      this.emit('friendship', payload.contactId)
     }
   }
 
   public async onFriendsRequestBeenAccepted (data: string) {
     const grpcFriendshipAcceptedData: GrpcFriendshipAcceptedData = JSON.parse(data)
     const type = grpcFriendshipAcceptedData.type
-    if (type === 1) {
+    if (type === AcceptedType.BOT) {
       log.silly(`The bot's friend request has been accepted.`)
-    } else {
+    } else if (type === AcceptedType.OTHERS) {
       log.silly(`The bot accepted the friend request from others.`)
+    } else {
+      throw new Error(`Can not parse this type : ${type}, data: ${data}`)
     }
     log.silly(PRE, `onFriendsRequestBeenAccepted(), new contact info : ${grpcFriendshipAcceptedData.data}`)
     const newContact: GrpcFriendshipAcceptedDetail = JSON.parse(grpcFriendshipAcceptedData.data)

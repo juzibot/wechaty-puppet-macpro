@@ -103,7 +103,7 @@ export function friendshipReceiveEventMessageParser (
 
   const id = uuid()
   const friendshipPayload: FriendshipPayloadReceive = {
-    contactId : rawPayload.account,
+    contactId : rawPayload.account || rawPayload.account_alias,
     hello     : rawPayload.check_msg,
     id,
     stranger  : rawPayload.encodeUserName,
