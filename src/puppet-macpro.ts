@@ -1,29 +1,8 @@
-/**
- *   Wechaty - https://github.com/chatie/wechaty
- *
- *   @copyright 2016-2018 Huan LI <zixia@zixia.net>
- *
- *   Licensed under the Apache License, Version 2.0 (the "License")
- *   you may not use this file except in compliance with the License.
- *   You may obtain a copy of the License at
- *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *   Unless required by applicable law or agreed to in writing, software
- *   distributed under the License is distributed on an "AS IS'
- *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *   See the License for the specific language governing permissions and
- *   limitations under the License.
- *
- */
-
 import { FileBox } from 'file-box'
 
 import flatten  from 'array-flatten'
 
 import path from 'path'
-
-import util from 'util' // 打印对象用的
 
 import LRU from 'lru-cache'
 
@@ -391,7 +370,7 @@ export class PuppetMacpro extends Puppet {
 
   protected async onProcessMessage (messagePayload: GrpcPrivateMessagePayload | GrpcPublicMessagePayload) {
 
-    log.verbose(PRE, `onProcessMessage()`)
+    log.verbose(PRE, `onProcessMessage(${JSON.stringify(messagePayload)})`)
     const contentType = messagePayload.content_type
 
     if (!contentType) {
@@ -402,7 +381,7 @@ export class PuppetMacpro extends Puppet {
       return
     }
 
-    const messageId = uuid()
+    const messageId = messagePayload.msgid
 
     const payload: MacproMessagePayload = {
       ...messagePayload,
@@ -1185,7 +1164,6 @@ export class PuppetMacpro extends Puppet {
     log.verbose(PRE, 'onMacproMessageRoomEventTopic({id=%s})', rawPayload.messageId)
 
     const roomTopicEvent = roomTopicEventMessageParser(rawPayload)
-    log.silly(`roomTopicEvent : ${JSON.stringify(roomTopicEvent)}`)
     if (roomTopicEvent) {
       const changerName = roomTopicEvent.changerName
       const newTopic    = roomTopicEvent.topic
@@ -1226,7 +1204,7 @@ export class PuppetMacpro extends Puppet {
     receiver  : Receiver,
     contactId : string,
   ): Promise<void> {
-    log.verbose(PRE, 'messageSend("%s", %s)', util.inspect(receiver), contactId)
+    log.verbose(PRE, 'messageSend("%s", %s)', receiver, contactId)
 
     const contactIdOrRoomId =  receiver.roomId || receiver.contactId
     await this.message.sendContact(this.selfId(), contactIdOrRoomId!, contactId)
