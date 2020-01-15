@@ -18,7 +18,9 @@ export default class MacproRoom {
     if (!this.roomQrcodeCallbackMap) {
       throw new Error(`no roomQrcodeCallbackMap`)
     }
-    this.roomQrcodeCallbackMap[roomId] = []
+    if (!this.roomQrcodeCallbackMap[roomId]) {
+      this.roomQrcodeCallbackMap[roomId] = []
+    }
     this.roomQrcodeCallbackMap[roomId].push(callback)
   }
 
@@ -39,7 +41,9 @@ export default class MacproRoom {
     if (!this.roomCallbackMap) {
       throw new Error(`no roomCallbackMap`)
     }
-    this.roomCallbackMap[roomId] = []
+    if (!this.roomCallbackMap[roomId]) {
+      this.roomCallbackMap[roomId] = []
+    }
     this.roomCallbackMap[roomId].push(callback)
   }
 
@@ -60,7 +64,9 @@ export default class MacproRoom {
     if (!this.roomMemberCallbackMap) {
       throw new Error(`no roomMemberCallbackMap`)
     }
-    this.roomMemberCallbackMap[roomId] = []
+    if (!this.roomMemberCallbackMap[roomId]) {
+      this.roomMemberCallbackMap[roomId] = []
+    }
     this.roomMemberCallbackMap[roomId].push(callback)
   }
 
