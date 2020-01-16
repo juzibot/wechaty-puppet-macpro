@@ -86,23 +86,17 @@ export default class MacproContact {
   }
 
   // config callback endpoint for getting contact list
-  public contactList = async (loginId: string): Promise<RequestStatus> => {
+  public contactList = async (loginId: string): Promise<void> => {
     log.verbose(PRE, `contactList(${loginId})`)
 
     const data = {
       my_account: loginId,
     }
 
-    const res = await this.requestClient.request({
+    await this.requestClient.request({
       apiName: 'getContactList',
       data,
     })
-
-    if (res && res.code === RequestStatus.Success) {
-      return RequestStatus.Success
-    } else {
-      return RequestStatus.Fail
-    }
   }
 
 }
