@@ -130,6 +130,7 @@ export enum CallbackType {
   LabelList     = 3,
   ScanStatus    = 4,
   RoomList      = 7,
+  ContactRemark = 10,
   ContactOrRoom = 182,
 }
 

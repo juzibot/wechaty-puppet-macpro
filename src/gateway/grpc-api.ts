@@ -19,7 +19,7 @@ import { ScanStatus } from 'wechaty-puppet'
 
 const PRE = 'GrpcGateway'
 
-export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-list' | 'room-member' | 'room-create' | 'room-join' | 'room-qrcode' | 'reconnect' | 'invalid-token' | 'add-friend' | 'del-friend' | 'add-friend-before-accept' | 'heartbeat' | 'contact-info' | 'room-info'
+export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-list' | 'room-member' | 'room-create' | 'room-join' | 'room-qrcode' | 'reconnect' | 'invalid-token' | 'add-friend' | 'del-friend' | 'add-friend-before-accept' | 'heartbeat' | 'contact-info' | 'room-info' | 'contact-remark'
 
 export class GrpcGateway extends EventEmitter {
 
@@ -162,6 +162,7 @@ export class GrpcGateway extends EventEmitter {
   public emit (event: 'add-friend', data: string): boolean
   public emit (event: 'del-friend', data: string): boolean
   public emit (event: 'contact-info', data: string): boolean
+  public emit (event: 'contact-remark', data: string): boolean
   public emit (event: 'room-info', data: string): boolean
   public emit (event: 'room-list', data: string): boolean
   public emit (event: 'room-member', data: string): boolean
@@ -190,6 +191,7 @@ export class GrpcGateway extends EventEmitter {
   public on (event: 'add-friend', listener: ((data: string) => any)): this
   public on (event: 'del-friend', listener: ((data: string) => any)): this
   public on (event: 'contact-info', listener: ((data: string) => any)): this
+  public on (event: 'contact-remark', listener: ((data: string) => any)): this
   public on (event: 'room-info', listener: ((data: string) => any)): this
   public on (event: 'room-list', listener: ((data: string) => any)): this
   public on (event: 'room-member', listener: ((data: string) => any)): this
@@ -297,6 +299,9 @@ export class GrpcGateway extends EventEmitter {
             case CallbackType.RoomList:
               this.emit('room-list', data.getData())
               break
+            case CallbackType.ContactRemark:
+              this.emit('contact-remark', data.getData())
+              break
             case CallbackType.ContactOrRoom:
               const contactOrRoomStr = data.getData()
               const contactOrRoom = JSON.parse(contactOrRoomStr)
@@ -322,7 +327,7 @@ export class GrpcGateway extends EventEmitter {
               }
               break
             default:
-              log.warn(`Can not match any cases.`)
+              log.warn(PRE, `Can not match any cases.`)
               break
           }
           break

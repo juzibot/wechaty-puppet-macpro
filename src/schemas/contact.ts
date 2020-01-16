@@ -28,6 +28,12 @@ export interface GrpcContactInfo {
   headurl: string,
 }
 
+export interface GrpcContactRemark {
+  to_account: string,
+  to_account_alias: string,
+  remark: string,
+}
+
 export interface MacproContactPayload {
   accountAlias: string,
   account: string,

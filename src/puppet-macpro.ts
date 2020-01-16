@@ -63,7 +63,7 @@ import {
 
 import { RequestClient } from './utils/request'
 import { CacheManageError } from './utils/errorMsg'
-import { MacproContactPayload, ContactList, GrpcContactPayload, AliasModel, GrpcContactInfo } from './schemas/contact'
+import { MacproContactPayload, ContactList, GrpcContactPayload, AliasModel, GrpcContactInfo, GrpcContactRemark } from './schemas/contact'
 import { CacheManager } from './cache-manager'
 import { GrpcGateway } from './gateway/grpc-api'
 import MacproContact from './mac-api/contact'
@@ -129,6 +129,8 @@ export class PuppetMacpro extends Puppet {
 
   private syncRoomQueue: DelayQueueExecutor
 
+  private syncRoomMemberQueue: DelayQueueExecutor
+
   private syncContactQueue: DelayQueueExecutor
 
   constructor (
@@ -160,8 +162,9 @@ export class PuppetMacpro extends Puppet {
       this.message = new MacproMessage(this.requestClient)
       this.room = new MacproRoom(this.requestClient)
 
-      this.syncRoomQueue = new DelayQueueExecutor(50)
-      this.syncContactQueue = new DelayQueueExecutor(50)
+      this.syncRoomQueue = new DelayQueueExecutor(200)
+      this.syncRoomMemberQueue = new DelayQueueExecutor(200)
+      this.syncContactQueue = new DelayQueueExecutor(200)
 
       this.reconnectThrottleQueue = new ThrottleQueue<string>(5000)
       this.reconnectThrottleQueue.subscribe(async reason => {
@@ -242,6 +245,8 @@ export class PuppetMacpro extends Puppet {
     this.grpcGateway.on('room-list', data => this.syncRoomList(data))
 
     this.grpcGateway.on('contact-info', data => this.syncContactInfo(data))
+
+    this.grpcGateway.on('contact-remark', data => this.syncContactRemark(data))
 
     this.grpcGateway.on('room-info', data => this.syncRoomInfo(data))
 
@@ -325,17 +330,7 @@ export class PuppetMacpro extends Puppet {
       await this.memory.save()
     }
 
-    await this.login(account)
-  }
-
-  protected async login (selfId: string): Promise<void> {
-    log.verbose(PRE, `login success, start loading contact and room data.`)
-
-    const contactStatus = await this.contact.contactList(selfId)
-    await this.room.syncRoomList(selfId)
-    if (contactStatus === RequestStatus.Fail) {
-      throw new Error(`load contact list failed.`)
-    }
+    await this.contact.contactList(account)
   }
 
   public onLogout () {
@@ -486,6 +481,18 @@ export class PuppetMacpro extends Puppet {
     }))
   }
 
+  public async syncContactRemark (data: string) {
+    const contactRemark: GrpcContactRemark = JSON.parse(data)
+    log.verbose(PRE, `syncContactRemark(), remark: ${contactRemark.remark}`)
+    if (this.cacheManager) {
+      const contact = await this.cacheManager.getContact(contactRemark.to_account_alias)
+      if (contact) {
+        contact.formName = contactRemark.remark
+        await this.cacheManager.setContact(contactRemark.to_account_alias, contact)
+      }
+    }
+  }
+
   public async syncContactInfo (data: string) {
     const contactInfo: GrpcContactInfo = JSON.parse(data)
     log.verbose(PRE, `syncContactInfo(), contact id : ${contactInfo.username}`)
@@ -529,15 +536,25 @@ export class PuppetMacpro extends Puppet {
         cacheRoom.thumb = roomDetailInfo.thumb
       }
 
-      await this.room.roomMember(this.selfId(), cacheRoom.number)
+      await this.syncRoomMemberQueue.execute(async () => {
+        await this.room.roomMember(this.selfId(), cacheRoom!.number)
+      })
 
-      this.room.pushRoomMemberCallback(cacheRoom.number, async (macproMembers) => {
-        cacheRoom!.members = macproMembers
-        if (!this.cacheManager) {
-          throw CacheManageError('pushRoomMemberCallback()')
-        }
-        await this.cacheManager.setRoom(cacheRoom!.number, cacheRoom!)
-        this.room.resolveRoomCallback(cacheRoom!.number, cacheRoom!)
+      await new Promise((resolve) => {
+        const timeout = setTimeout(async () => {
+          log.error(PRE, `can not load room member, room id : ${cacheRoom!.number}`)
+          await this.room.roomMember(this.selfId(), cacheRoom!.number)
+        }, 3000)
+        this.room.pushRoomMemberCallback(cacheRoom!.number, async (macproMembers) => {
+          clearTimeout(timeout)
+          cacheRoom!.members = macproMembers
+          if (!this.cacheManager) {
+            throw CacheManageError('pushRoomMemberCallback()')
+          }
+          await this.cacheManager.setRoom(cacheRoom!.number, cacheRoom!)
+          this.room.resolveRoomCallback(cacheRoom!.number, cacheRoom!)
+          resolve()
+        })
       })
     }
   }
@@ -773,6 +790,30 @@ export class PuppetMacpro extends Puppet {
     log.verbose(PRE, 'contactSelfSignature(%s)', signature)
 
     throw new Error('not supported')
+  }
+
+  /**
+   *
+   * Tags
+   *
+   */
+
+  // add a tag for a Contact. Create it first if it not exist.
+  public async tagContactAdd (id: string, contactId: string) : Promise<void> {
+    log.error(`tagContactAdd not supported, ${id}, ${contactId}`)
+  }
+  // remove a tag from the Contact
+  public async tagContactRemove (id: string, contactId: string) : Promise<void> {
+    log.error(`tagContactRemove not supported, ${id}, ${contactId}`)
+  }
+  // delete a tag from Wechat
+  public async tagContactDelete (id: string) : Promise<void> {
+    log.error(`tagContactDelete not supported, ${id}`)
+  }
+  // get tags from a specific Contact
+  public async tagContactList (contactId?: string) : Promise<string[]> {
+    log.error(`tagContactList not supported, ${contactId}`)
+    return []
   }
 
   /**
@@ -1368,7 +1409,12 @@ export class PuppetMacpro extends Puppet {
       })
 
       return new Promise((resolve) => {
+        const timeout = setTimeout(async () => {
+          log.error(PRE, `can not load room, room id : ${roomId}`)
+          await this.room.syncRoomDetailInfo(this.selfId(), roomId)
+        }, 3000)
         this.room.pushRoomCallback(roomId, async (room: MacproRoomPayload) => {
+          clearTimeout(timeout)
           resolve(room)
         })
       })
@@ -1718,6 +1764,15 @@ export class PuppetMacpro extends Puppet {
    * Friendship
    *
    */
+
+  public async friendshipSearchPhone (phone: string): Promise<string | null> {
+    throw new Error(`not supported ${phone}`)
+  }
+
+  public async friendshipSearchWeixin (weixin: string): Promise<string | null> {
+    throw new Error(`not supported ${weixin}`)
+  }
+
   public async friendshipRawPayload (friendshipId: string): Promise<FriendshipPayload> {
     if (!this.cacheManager) {
       throw new Error(`cache manager is not available, can not get friendship raw payload.`)
