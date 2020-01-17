@@ -235,7 +235,7 @@ export class PuppetMacpro extends Puppet {
     /**
      * message callback
      */
-    this.grpcGateway.on('message', data => this.onProcessMessage(JSON.parse(data)))
+    this.grpcGateway.on('message', data => this.onProcessMessage(data))
 
     /**
      * sync contact and room data callback
@@ -362,8 +362,8 @@ export class PuppetMacpro extends Puppet {
     }
   }
 
-  protected async onProcessMessage (messagePayload: GrpcPrivateMessagePayload | GrpcPublicMessagePayload) {
-
+  protected async onProcessMessage (data: string) {
+    const messagePayload: GrpcPrivateMessagePayload | GrpcPublicMessagePayload = JSON.parse(data)
     log.verbose(PRE, `onProcessMessage()`)
     const contentType = messagePayload.content_type
 
@@ -375,7 +375,7 @@ export class PuppetMacpro extends Puppet {
       return
     }
 
-    const messageId = messagePayload.msgid
+    const messageId = messagePayload.msgid.toString()
 
     const payload: MacproMessagePayload = {
       ...messagePayload,
