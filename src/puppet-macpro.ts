@@ -1587,50 +1587,12 @@ export class PuppetMacpro extends Puppet {
     return new Promise<string>((resolve) => {
       this.grpcGateway.on('room-create', async data => {
         const roomCreate: MacproCreateRoom = JSON.parse(data)
-        const roomPayload = await this.convertCreateRoom(roomCreate, contactIdList.toString())
-
-        if (!this.cacheManager) {
-          throw CacheManageError('roomCreate()')
-        }
-
-        if (roomCreate && roomCreate.account) {
-          await this.cacheManager.setRoom(roomCreate.account, roomPayload)
-        }
         const roomId = roomCreate.account
-
+        await this.room.syncRoomDetailInfo(this.selfId(), roomId)
         resolve(roomId)
       })
     })
 
-  }
-
-  private async convertCreateRoom (room: MacproCreateRoom, contactIdList: string): Promise<MacproRoomPayload> {
-    log.silly(PRE, `convertCreateRoom() : ${contactIdList}`)
-    const contactList = contactIdList.split(',')
-    const members: MacproContactPayload[] = []
-
-    contactList.map(async contactId => {
-      if (!this.cacheManager) {
-        throw CacheManageError('convertCreateRoom()')
-      }
-      let contact: MacproContactPayload | undefined
-      contact = await this.cacheManager.getContact(contactId)
-      if (contact) {
-        members.push(contact)
-      } else {
-        throw new Error(`can not get contact payload`)
-      }
-    })
-
-    const roomPayload: MacproRoomPayload = {
-      disturb: 1,
-      members,
-      name: room.name,
-      number: room.account,
-      owner: room.my_account,
-      thumb: room.headerImage,
-    }
-    return roomPayload
   }
 
   public async roomAdd (
