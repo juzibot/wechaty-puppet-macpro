@@ -72,7 +72,6 @@ import MacproMessage from './mac-api/message'
 import { MacproRoomPayload, GrpcRoomMemberPayload, MacproRoomInvitationPayload, MacproCreateRoom, GrpcRoomQrcode, MacproRoomMemberPayload, GrpcRoomJoin, RoomChangeState, GrpcSyncRoomListBox, GrpcSyncRoomList, GrpcRoomPayload } from './schemas/room'
 import MacproRoom from './mac-api/room'
 import {
-  fileBoxToQrcode,
   friendshipConfirmEventMessageParser,
   friendshipReceiveEventMessageParser,
   friendshipVerifyEventMessageParser,
@@ -282,7 +281,7 @@ export class PuppetMacpro extends Puppet {
     } else {
 
       const fileBox = FileBox.fromUrl(data.url)
-      const url = await fileBoxToQrcode(fileBox)
+      const url = await fileBox.toQRCode()
       this.emit('scan', url, ScanStatus.Cancel)
     }
   }

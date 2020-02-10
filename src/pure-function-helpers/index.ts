@@ -12,7 +12,6 @@
  *
  */
 
-export * from './file-box-to-qrcode'
 export * from './is-type'
 export * from './friendship-event-message-parser'
 export * from './message-raw-payload-parser'
