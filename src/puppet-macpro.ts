@@ -19,8 +19,6 @@ import {
   Puppet,
   PuppetOptions,
 
-  Receiver,
-
   RoomInvitationPayload,
   RoomMemberPayload,
   RoomPayload,
@@ -773,8 +771,8 @@ export class PuppetMacpro extends Puppet {
    *
    *
    */
-  public async contactSelfQrcode (): Promise<string> {
-    log.verbose(PRE, 'contactSelfQrcode()')
+  public async contactSelfQRCode (): Promise<string> {
+    log.verbose(PRE, 'contactSelfQRCode()')
 
     throw new Error('not supported')
   }
@@ -965,20 +963,18 @@ export class PuppetMacpro extends Puppet {
    *
    */
   public async messageSendText (
-    receiver : Receiver,
+    conversationId : string,
     text     : string,
     mentionIdList?: string[],
   ): Promise<void> {
 
-    log.silly(PRE, 'messageSend(%s, %s)', JSON.stringify(receiver), text)
-
-    const contactIdOrRoomId =  receiver.roomId || receiver.contactId
+    log.silly(PRE, 'messageSend(%s, %s)', conversationId, text)
 
     if (this.selfId()) {
       if (mentionIdList && mentionIdList.length > 0) {
-        await this.room.atRoomMember(this.selfId(), contactIdOrRoomId!, mentionIdList.join(','), text)
+        await this.room.atRoomMember(this.selfId(), conversationId, mentionIdList.join(','), text)
       } else {
-        await this.message.sendMessage(this.selfId(), contactIdOrRoomId!, text, MacproMessageType.Text)
+        await this.message.sendMessage(this.selfId(), conversationId, text, MacproMessageType.Text)
       }
     } else {
       throw new Error('Can not get the logined account id')
@@ -987,12 +983,10 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async messageSendFile (
-    receiver : Receiver,
+    conversationId : string,
     file     : FileBox,
   ): Promise<void> {
-    log.verbose(PRE, 'messageSendFile(%s, %s)', receiver, file)
-
-    const contactIdOrRoomId =  receiver.roomId || receiver.contactId
+    log.verbose(PRE, 'messageSendFile(%s, %s)', conversationId, file)
 
     const fileUrl = await this.generatorFileUrl(file)
 
@@ -1011,14 +1005,14 @@ export class PuppetMacpro extends Puppet {
       case '.jpg':
       case '.jpeg':
       case '.png':
-        await this.message.sendMessage(this.selfId(), contactIdOrRoomId!, fileUrl, MacproMessageType.Image)
+        await this.message.sendMessage(this.selfId(), conversationId, fileUrl, MacproMessageType.Image)
         break
       case '.mp4':
       case 'video/mp4':
-        await this.message.sendMessage(this.selfId(), contactIdOrRoomId!, fileUrl, MacproMessageType.Video)
+        await this.message.sendMessage(this.selfId(), conversationId, fileUrl, MacproMessageType.Video)
         break
       default:
-        await this.message.sendMessage(this.selfId(), contactIdOrRoomId!, fileUrl, MacproMessageType.File, file.name)
+        await this.message.sendMessage(this.selfId(), conversationId, fileUrl, MacproMessageType.File, file.name)
         break
     }
 
@@ -1035,15 +1029,13 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async messageSendUrl (
-    to: Receiver,
+    conversationId: string,
     urlLinkPayload: UrlLinkPayload
   ) : Promise<void> {
     log.verbose(PRE, 'messageSendUrl("%s", %s)',
-      JSON.stringify(to),
+      conversationId,
       JSON.stringify(urlLinkPayload),
     )
-
-    const contactIdOrRoomId =  to.roomId || to.contactId
 
     const { url, title, thumbnailUrl, description } = urlLinkPayload
 
@@ -1053,7 +1045,7 @@ export class PuppetMacpro extends Puppet {
       title,
       url,
     }
-    await this.message.sendUrlLink(this.selfId(), contactIdOrRoomId!, payload)
+    await this.message.sendUrlLink(this.selfId(), conversationId, payload)
   }
 
   public async messageRawPayload (id: string): Promise<MacproMessagePayload> {
@@ -1242,23 +1234,21 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async messageSendContact (
-    receiver  : Receiver,
+    conversationId  : string,
     contactId : string,
   ): Promise<void> {
-    log.verbose(PRE, 'messageSend("%s", %s)', receiver, contactId)
+    log.verbose(PRE, 'messageSend("%s", %s)', conversationId, contactId)
 
-    const contactIdOrRoomId =  receiver.roomId || receiver.contactId
-    await this.message.sendContact(this.selfId(), contactIdOrRoomId!, contactId)
+    await this.message.sendContact(this.selfId(), conversationId, contactId)
   }
 
   // 发送小程序
   public async messageSendMiniProgram (
-    receiver: Receiver,
+    conversationId: string,
     miniProgramPayload: MiniProgramPayload,
   ): Promise<void> {
     log.verbose(PRE, 'messageSendMiniProgram()')
 
-    const contactIdOrRoomId =  receiver.roomId || receiver.contactId
     const {
       // username, // UNKNOW
       appid, // 小程序关联的微信公众号ID
@@ -1277,17 +1267,17 @@ export class PuppetMacpro extends Puppet {
       thumb_key: thumbKey,
       thumb_url: thumbUrl,
       title: title!,
-      to_account: contactIdOrRoomId!,
+      to_account: conversationId,
     }
     await this.message.sendMiniProgram(_miniProgram)
   }
 
   public async messageForward (
-    receiver  : Receiver,
+    conversationId  : string,
     messageId : string,
   ): Promise<void> {
     log.verbose(PRE, 'messageForward(%s, %s)',
-      receiver,
+      conversationId,
       messageId,
     )
 
@@ -1298,26 +1288,26 @@ export class PuppetMacpro extends Puppet {
         throw new Error('no text')
       }
       await this.messageSendText(
-        receiver,
+        conversationId,
         payload.text,
       )
     } else if (payload.type === MessageType.Audio) {
       throw new Error(`not support`)
     } else if (payload.type === MessageType.Url) {
       await this.messageSendUrl(
-        receiver,
+        conversationId,
         await this.messageUrl(messageId)
       )
     } else if (payload.type === MessageType.MiniProgram) {
       await this.messageSendMiniProgram(
-        receiver,
+        conversationId,
         await this.messageMiniProgram(messageId)
       )
     } else if (payload.type === MessageType.ChatHistory) {
       throw new Error(`not support`)
     } else {
       await this.messageSendFile(
-        receiver,
+        conversationId,
         await this.messageFile(messageId),
       )
     }
@@ -1427,6 +1417,7 @@ export class PuppetMacpro extends Puppet {
   ): Promise<RoomPayload> {
     log.verbose(PRE, 'roomRawPayloadParser()')
     const payload: RoomPayload = {
+      adminIdList: [],
       avatar: rawPayload.thumb,
       id : rawPayload.number,
       memberIdList : rawPayload.members.map(m => m.account) || [],
@@ -1658,8 +1649,8 @@ export class PuppetMacpro extends Puppet {
     await this.room.roomQuit(this.selfId(), roomId)
   }
 
-  public async roomQrcode (roomId: string): Promise<string> {
-    log.verbose(PRE, 'roomQrcode(%s)', roomId)
+  public async roomQRCode (roomId: string): Promise<string> {
+    log.verbose(PRE, 'roomQRCode(%s)', roomId)
 
     await this.room.roomQrcode(this.selfId(), roomId)
 
@@ -1711,12 +1702,14 @@ export class PuppetMacpro extends Puppet {
   public async roomInvitationRawPayloadParser (rawPayload: MacproRoomInvitationPayload): Promise<RoomInvitationPayload> {
     log.verbose(PRE, `roomInvitationRawPayloadDirty(${rawPayload})`)
     return {
+      avatar: '',
       id: rawPayload.id,
+      invitation: '',
       inviterId: rawPayload.fromUser,
-      roomMemberCount: 0,
-      roomMemberIdList: [],
-      roomTopic: rawPayload.roomName,
+      memberCount: 0,
+      memberIdList: [],
       timestamp: rawPayload.timestamp,
+      topic: rawPayload.roomName,
     }
   }
 
