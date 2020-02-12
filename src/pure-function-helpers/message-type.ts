@@ -61,8 +61,11 @@ export function messageType (
       break
 
     case MacproMessageType.RedPacket:
+      type = MessageType.RedEnvelope
+      break
+
     case MacproMessageType.MoneyTransaction:
-      type = MessageType.Money
+      type = MessageType.Transfer
       break
 
     case MacproMessageType.MiniProgram:
