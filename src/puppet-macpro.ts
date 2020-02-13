@@ -82,6 +82,7 @@ import { roomJoinEventMessageParser } from './pure-function-helpers/room-event-j
 import { roomLeaveEventMessageParser } from './pure-function-helpers/room-event-leave-message-parser'
 import { roomTopicEventMessageParser } from './pure-function-helpers/room-event-topic-message-parser'
 import { messageUrlPayloadParser } from './pure-function-helpers/message-url-payload-parser'
+import { roomInviteEventMessageParser } from './pure-function-helpers/room-event-invite-message-parser'
 
 const PRE = 'PuppetMacpro'
 const MEMORY_SLOT_NAME = 'WECHATY_PUPPET_MACPRO'
@@ -396,6 +397,8 @@ export class PuppetMacpro extends Puppet {
       case MacproMessageType.PublicCard:
       case MacproMessageType.PrivateCard:
       case MacproMessageType.UrlLink:
+        await this.onMacproMessageRoomInvitation(payload)
+        break
       case MacproMessageType.MiniProgram:
       case MacproMessageType.Gif:
         this.emit('message', messageId)
@@ -1233,6 +1236,21 @@ export class PuppetMacpro extends Puppet {
     return false
   }
 
+  public async onMacproMessageRoomInvitation (payload: MacproMessagePayload): Promise<void> {
+    log.verbose(PRE, 'onMacproMessageRoomInvitation(%s)', JSON.stringify(payload))
+    const roomInviteEvent = await roomInviteEventMessageParser(payload)
+
+    if (roomInviteEvent) {
+      if (!this.cacheManager) {
+        throw CacheManageError('contactAvatar()')
+      }
+      await this.cacheManager.setRoomInvitation(roomInviteEvent.id, roomInviteEvent)
+      this.emit('room-invite', roomInviteEvent.id)
+    } else {
+      this.emit('message', payload.messageId)
+    }
+  }
+
   public async messageSendContact (
     conversationId  : string,
     contactId : string,
@@ -1680,7 +1698,15 @@ export class PuppetMacpro extends Puppet {
    */
   public async roomInvitationAccept (roomInvitationId: string): Promise<void> {
     log.verbose(PRE, 'roomInvitationAccept(%s)', roomInvitationId)
-    throw new Error(`not support`)
+    if (!this.cacheManager) {
+      throw new Error(`no cache manager`)
+    }
+    const roomInvitation = await this.cacheManager.getRoomInvitation(roomInvitationId)
+    if (roomInvitation && roomInvitation.url) {
+      await this.room.getRoomInvitationDetail(roomInvitation.url)
+    } else {
+      throw new Error(`can not get room invitation by this id : ${roomInvitationId}`)
+    }
   }
 
   public async roomInvitationRawPayload (roomInvitationId: string): Promise<MacproRoomInvitationPayload> {
@@ -1750,13 +1776,6 @@ export class PuppetMacpro extends Puppet {
   ): Promise<void> {
     log.verbose(PRE, 'friendshipAdd(%s, %s)', contactId, hello)
 
-    await this._friendshipAdd(contactId, hello)
-  }
-
-  private async _friendshipAdd (
-    contactId: string,
-    hello: string,
-  ) {
     if (!this.cacheManager) {
       throw CacheManageError('friendshipAdd()')
     }
@@ -1768,12 +1787,11 @@ export class PuppetMacpro extends Puppet {
     } else {
       await this.user.addFriend(this.selfId(), contactId, hello)
     }
-    const result = await new Promise<AddFriendBeforeAccept>(async (resolve) => {
+    await new Promise<AddFriendBeforeAccept>(async (resolve) => {
       this.addFriendCB[extend] = (data: AddFriendBeforeAccept) => {
         resolve(data)
       }
     })
-    return result
   }
 
   public async friendshipAccept (

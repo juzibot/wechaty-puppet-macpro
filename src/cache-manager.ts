@@ -368,6 +368,7 @@ export class CacheManager {
     this.cacheRoomRawPayload           = new FlashStore(path.join(baseDir, 'room-raw-payload'))
     this.cacheFile                     = new FlashStore(path.join(baseDir, 'file-cache'))
     this.cacheFriendshipRawPayload     = new FlashStore(path.join(baseDir, 'friendship'))
+    this.cacheRoomInvitationRawPayload = new FlashStore(path.join(baseDir, 'room-invitation'))
 
     const contactTotal = this.cacheContactRawPayload.size
 
@@ -382,6 +383,7 @@ export class CacheManager {
         && this.cacheRoomRawPayload
         && this.cacheFile
         && this.cacheFriendshipRawPayload
+        && this.cacheRoomInvitationRawPayload
     ) {
       log.silly(PRE, 'releaseCache() closing caches ...')
 
@@ -391,13 +393,15 @@ export class CacheManager {
         this.cacheRoomRawPayload.close(),
         this.cacheFile.close(),
         this.cacheFriendshipRawPayload.close(),
+        this.cacheRoomInvitationRawPayload.close(),
       ])
 
-      this.cacheContactRawPayload    = undefined
-      this.cacheRoomMemberRawPayload = undefined
-      this.cacheRoomRawPayload       = undefined
-      this.cacheFile                 = undefined
-      this.cacheFriendshipRawPayload = undefined
+      this.cacheContactRawPayload        = undefined
+      this.cacheRoomMemberRawPayload     = undefined
+      this.cacheRoomRawPayload           = undefined
+      this.cacheFile                     = undefined
+      this.cacheFriendshipRawPayload     = undefined
+      this.cacheRoomInvitationRawPayload = undefined
 
       log.silly(PRE, 'releaseCache() cache closed.')
     } else {
