@@ -14,13 +14,14 @@ export default class MacproMessage {
   }
 
   // Send message (text, image, url, video, file, gif)
-  public sendMessage = async (contactId: string, contactIdOrRoomId: string, message: string, messageType: MacproMessageType, fileName?: string): Promise<RequestStatus> => {
+  public async sendMessage (contactId: string, contactIdOrRoomId: string, message: string, messageType: MacproMessageType, fileName?: string, imgSize?: string): Promise<RequestStatus> {
     log.verbose(PRE, `sendMessage()`)
 
     const data = {
       content: message,
       content_type: messageType,
       file_name: fileName,
+      img_size: imgSize,
       my_account: contactId,
       to_account: contactIdOrRoomId,
       type: isRoomId(contactIdOrRoomId) ? 2 : 1,

@@ -390,15 +390,15 @@ export class PuppetMacpro extends Puppet {
         await this.onMacproMessageFriendshipEvent(payload)
         this.emit('message', messageId)
         break
+      case MacproMessageType.UrlLink:
+        await this.onMacproMessageRoomInvitation(payload)
+        break
       case MacproMessageType.Image:
       case MacproMessageType.Voice:
       case MacproMessageType.Video:
       case MacproMessageType.File:
       case MacproMessageType.PublicCard:
       case MacproMessageType.PrivateCard:
-      case MacproMessageType.UrlLink:
-        await this.onMacproMessageRoomInvitation(payload)
-        break
       case MacproMessageType.MiniProgram:
       case MacproMessageType.Gif:
         this.emit('message', messageId)
@@ -1001,8 +1001,11 @@ export class PuppetMacpro extends Puppet {
 
     log.silly(PRE, `fileType : ${type}`)
     switch (type) {
+      case 'binary/octet-stream':
       case '.slk':
-        throw new Error('not support')
+      case '.silk':
+        await this.message.sendMessage(this.selfId(), conversationId, fileUrl, MacproMessageType.Voice, undefined, file.metadata.voiceLength)
+        break
       case 'image/jpeg':
       case 'image/png':
       case '.jpg':
@@ -1309,8 +1312,6 @@ export class PuppetMacpro extends Puppet {
         conversationId,
         payload.text,
       )
-    } else if (payload.type === MessageType.Audio) {
-      throw new Error(`not support`)
     } else if (payload.type === MessageType.Url) {
       await this.messageSendUrl(
         conversationId,
@@ -1346,7 +1347,18 @@ export class PuppetMacpro extends Puppet {
     throw new Error(`messageContact() not supported now`)
   }
 
+  protected async mp3ConvertSilk (mp3Url: string): Promise<string> {
+    if (mp3Url.indexOf('silk') !== -1) {
+      return mp3Url
+    } else {
+      // TODO: use vx-voice convert mp3 file to silk file
+      // and then upload to S3 return the url for forward the voice message
+      throw new Error(`not support forward voice message`)
+    }
+  }
+
   public async messageFile (id: string): Promise<FileBox> {
+    log.info(PRE, `messageFile(${id})`)
     if (!this.cacheManager) {
       throw new Error(`Can not get filebox from message since no cache manager.`)
     }
@@ -1363,8 +1375,10 @@ export class PuppetMacpro extends Puppet {
       MacproMessageType.Gif,
     ]
     if (supportedMessageTypeToFileBox.includes(messageType)) {
-      const fileBox = FileBox.fromUrl(messagePayload.content)
+      let fileBox = FileBox.fromUrl(messagePayload.content)
       if (messageType === MacproMessageType.Voice) {
+        const url = await this.mp3ConvertSilk(messagePayload.content)
+        fileBox = FileBox.fromUrl(url)
         fileBox.metadata = {
           voiceLength: messagePayload.voice_len,
         }
