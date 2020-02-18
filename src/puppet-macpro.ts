@@ -797,22 +797,27 @@ export class PuppetMacpro extends Puppet {
    * Tags
    *
    */
+  public async tagContactAdd (name: string, contactId: string) : Promise<void> {
+    log.silly(`tagContactAdd(${name}, ${contactId})`)
+    const tagId = await this.contact.createTag(this.selfId(), name)
+    await this.contact.addTag(this.selfId(), tagId, contactId)
+  }
 
-  // add a tag for a Contact. Create it first if it not exist.
-  public async tagContactAdd (id: string, contactId: string) : Promise<void> {
-    log.error(`tagContactAdd not supported, ${id}, ${contactId}`)
+  public async tagContactRemove (name: string, contactId: string) : Promise<void> {
+    log.silly(PRE, `tagContactRemove()`)
+    const tagId = await this.contact.createTag(this.selfId(), name)
+    await this.contact.removeTag(this.selfId(), tagId, contactId)
   }
-  // remove a tag from the Contact
-  public async tagContactRemove (id: string, contactId: string) : Promise<void> {
-    log.error(`tagContactRemove not supported, ${id}, ${contactId}`)
-  }
-  // delete a tag from Wechat
+
   public async tagContactDelete (id: string) : Promise<void> {
-    log.error(`tagContactDelete not supported, ${id}`)
+    log.silly(`tagContactDelete(${id})`)
+
+    await this.contact.deleteTag(this.selfId(), id)
   }
-  // get tags from a specific Contact
+
   public async tagContactList (contactId?: string) : Promise<string[]> {
     log.error(`tagContactList not supported, ${contactId}`)
+    await this.contact.tags(this.selfId(), contactId)
     return []
   }
 

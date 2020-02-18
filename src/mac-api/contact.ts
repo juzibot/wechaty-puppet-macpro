@@ -99,4 +99,87 @@ export default class MacproContact {
     })
   }
 
+  public async createTag (loginId: string, tags: string): Promise<string> {
+    log.silly(`createTag(${tags})`)
+    const data = {
+      lables: tags,
+      my_account: loginId,
+    }
+
+    await this.requestClient.request({
+      apiName: 'createTag',
+      data,
+    })
+
+    return ''
+  }
+
+  public async addTag (loginId: string, tagId: string, contactId: string): Promise<void> {
+    await this.tags(contactId)
+
+    const data = {
+      account: contactId,
+      label_id: tagId,
+      my_account: loginId,
+    }
+
+    await this.requestClient.request({
+      apiName: 'addTag',
+      data,
+    })
+  }
+
+  public async removeTag (loginId: string, tagId: string, contactId: string): Promise<void> {
+
+    // TODO: how to get tagId for one contact
+    const contactLabelIdList = ['']
+    const index = contactLabelIdList.indexOf(tagId)
+    if (index !== -1) {
+      contactLabelIdList.splice(index, 1)
+      await this.addTag(loginId, contactLabelIdList.join(','), contactId)
+    }
+  }
+
+  public async tags (loginId: string, contactId?: string): Promise<any []> {
+
+    const tagList: any[] = await this.tagList(loginId)
+
+    if (!contactId) {
+      return tagList
+    }
+
+    return []
+  }
+
+  public async tagList (loginId: string): Promise<any []> {
+    log.silly(PRE, `tagList()`)
+
+    const data = {
+      my_account: loginId,
+    }
+
+    const res = await this.requestClient.request({
+      apiName: 'getTag',
+      data,
+    })
+
+    log.silly(`res : ${JSON.stringify(res)}`)
+    return []
+  }
+
+  public async deleteTag (loginId: string, tags: string): Promise<string> {
+    log.silly(`deleteTag(${tags})`)
+    const data = {
+      lable_id: tags,
+      my_account: loginId,
+    }
+
+    await this.requestClient.request({
+      apiName: 'deleteTag',
+      data,
+    })
+
+    return ''
+  }
+
 }
