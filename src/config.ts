@@ -1,5 +1,5 @@
 import { log }      from 'brolog'
-import { FileBox }  from 'file-box'
+import { FileBox }  from 'wechaty-puppet'
 import qrImage      from 'qr-image'
 import { OperationOptions } from 'retry'
 import promiseRetry = require('promise-retry')
