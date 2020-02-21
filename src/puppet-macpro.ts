@@ -1,5 +1,3 @@
-import { FileBox } from 'file-box'
-
 import flatten  from 'array-flatten'
 
 import path from 'path'
@@ -10,7 +8,7 @@ import {
   ContactGender,
   ContactPayload,
   ContactType,
-
+  FileBox,
   FriendshipPayload,
 
   MessagePayload,
@@ -26,6 +24,7 @@ import {
   UrlLinkPayload,
   MiniProgramPayload,
   ScanStatus,
+  ImageType,
 }                           from 'wechaty-puppet'
 
 import {
@@ -1326,6 +1325,11 @@ export class PuppetMacpro extends Puppet {
   public async messageContact (messageId: string): Promise<string> {
     log.warn(`messageContact() need to be implemented, ${messageId}`)
     throw new Error(`messageContact() not supported now`)
+  }
+
+  public async messageImage (messageId: string, imageType: ImageType): Promise<FileBox> {
+    log.warn(`messageImage() need to be implemented, ${messageId}, ${imageType}`)
+    throw new Error(`messageImage() not support`)
   }
 
   public async messageFile (id: string): Promise<FileBox> {
