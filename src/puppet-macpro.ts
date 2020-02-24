@@ -1,5 +1,3 @@
-import { FileBox } from 'file-box'
-
 import flatten  from 'array-flatten'
 
 import path from 'path'
@@ -10,7 +8,7 @@ import {
   ContactGender,
   ContactPayload,
   ContactType,
-
+  FileBox,
   FriendshipPayload,
 
   MessagePayload,
@@ -26,6 +24,7 @@ import {
   UrlLinkPayload,
   MiniProgramPayload,
   ScanStatus,
+  ImageType,
 }                           from 'wechaty-puppet'
 
 import {
@@ -1352,14 +1351,9 @@ export class PuppetMacpro extends Puppet {
     throw new Error(`messageContact() not supported now`)
   }
 
-  protected async mp3ConvertSilk (mp3Url: string): Promise<string> {
-    if (mp3Url.indexOf('silk') !== -1) {
-      return mp3Url
-    } else {
-      // TODO: use vx-voice convert mp3 file to silk file
-      // and then upload to S3 return the url for forward the voice message
-      throw new Error(`not support forward voice message`)
-    }
+  public async messageImage (messageId: string, imageType: ImageType): Promise<FileBox> {
+    log.warn(`messageImage() need to be implemented, ${messageId}, ${imageType}`)
+    throw new Error(`messageImage() not support`)
   }
 
   public async messageFile (id: string): Promise<FileBox> {
@@ -1382,10 +1376,14 @@ export class PuppetMacpro extends Puppet {
     if (supportedMessageTypeToFileBox.includes(messageType)) {
       let fileBox = FileBox.fromUrl(messagePayload.content)
       if (messageType === MacproMessageType.Voice) {
-        const url = await this.mp3ConvertSilk(messagePayload.content)
-        fileBox = FileBox.fromUrl(url)
-        fileBox.metadata = {
-          voiceLength: messagePayload.voice_len,
+        if (messagePayload.content.indexOf('.silk') !== -1) {
+          const url = messagePayload.content
+          fileBox = FileBox.fromUrl(url)
+          fileBox.metadata = {
+            voiceLength: messagePayload.voice_len,
+          }
+        } else {
+          throw new Error(`can not get the silk url for this voice.`)
         }
       } else if (messageType === MacproMessageType.File) {
         fileBox.metadata = {
