@@ -1712,6 +1712,7 @@ export class PuppetMacpro extends Puppet {
       inviterId: rawPayload.fromUser,
       memberCount: 0,
       memberIdList: [],
+      receiverId: '',
       timestamp: rawPayload.timestamp,
       topic: rawPayload.roomName,
     }
