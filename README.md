@@ -10,55 +10,80 @@
 
 ### 1. Init
 
-> check your `Node` version first
+#### 1.1. Check your `Node` version first
 
 ```js
 node --version // v10.16.0 (BTW v10.0.0 < version < v11.0.0 is better)
 ```
 
+> for windows system
+
+To make sure you could install `wechaty-puppet-macpro` successfully, you have to start PowerShell as Administrator and run these commands:
+
+```js
+npm install -g windows-build-tools
+
+npm install -g node-gyp
+```
+
+#### 1.2. Create your bot folder and do some init config
+
 ```js
 mkdir my-macpro-bot && cd my-macpro-bot
 
 npm init -y
+
+npm install ts-node typescript -g
+
+tsc --init
 ```
 
-### 2. Install the latest wechaty
+### 2. Install the bot dependency
+
+```js
+npm install wechaty@latest
+
+npm install wechaty-puppet-macpro@latest
+```
+
+Or some new features developing version:
 
 ```js
 npm install wechaty@next
+
+npm install wechaty-puppet-macpro@next
 ```
 
-### 3. Install wechaty-puppet-macpro
-
-> Notice: wechaty-puppet-macpro still in alpha test period, so we keep updating the package, you should install the latest packge by using `@latest` until we release the stable package.
-
-```js
-npm install wechaty-puppet-macpro
-```
-
-### 4. Install other dependency
+### 3. Install other dependency
 
 > There's no need to install `wechaty-puppet` in my-macpro-bot
 
 ```js
 npm install qrcode-terminal
+...
 ```
 
-### 5. Re-Install all related package
+### 4. Other Tips
 
-> If step 1~4 can not help you install successfully, please try this suggestion, otherwise just skip it please.
+> If step 1~3 can not help you install successfully, please try this suggestion, otherwise just skip it please.
 
 ```js
 rm -rf node_modules package-lock.json
-
 npm install
 ```
 
-## Usage Notice
+> If you want to see detail logs about your bot, just run:
 
-1. Only need to scan qrcode at the first time to login the wechaty.
-2. If you logout the wechaty and please **wait for 90 seconds** and then restart the bot again.
-3. If your WeChat logout (*by WeChat App or API*), you can login without scan qrcode when you start the bot, just tap the `OK` button in WeChat App and your bot will login wechaty.
+```js
+BROLOG_LEVEL=silly ts-node index.ts
+```
+
+or
+
+```js
+BROLOG_LEVEL=silly node index.js
+```
+
 
 ## Example
 
@@ -96,7 +121,7 @@ bot
 
 ## Puppet Comparison
 
-功能 | padpro | macpro | padplus
+功能 | padpro | macpro | macpro
 ---|---|---|---
  **<消息>**|||
  收发文本|✅|✅|✅
