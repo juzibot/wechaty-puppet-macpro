@@ -110,9 +110,11 @@ export interface MacproCreateRoom {
 }
 
 export interface MacproRoomInvitationPayload {
-  id       : string,
   fromUser : string,
+  id       : string,
+  receiver : string,
   roomName : string,
+  thumbUrl : string,
   timestamp: number,
   url      : string,
 }

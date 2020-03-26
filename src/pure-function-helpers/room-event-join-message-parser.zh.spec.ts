@@ -5,11 +5,11 @@
 import test  from 'blue-tape'
 
 import {
-  PuppetRoomJoinEvent,
   YOU,
 }                               from 'wechaty-puppet'
 
 import {
+  RoomJoinEvent,
   MacproMessagePayload,
 }                                 from '../schemas'
 
@@ -34,7 +34,7 @@ test('roomJoinEventMessageParser() ZH-other-invite-other', async t => {
     voice_len: 1,
   }
 
-  const EXPECTED_EVENT: PuppetRoomJoinEvent = {
+  const EXPECTED_EVENT: RoomJoinEvent = {
     inviteeNameList: ['奥斯陆'],
     inviterName: '高原ོ',
     roomId: '23761343687@chatroom',
@@ -63,7 +63,7 @@ test('roomJoinEventMessageParser() ZH-other-invite-others', async t => {
     voice_len: 0,
   }
 
-  const EXPECTED_EVENT: PuppetRoomJoinEvent = {
+  const EXPECTED_EVENT: RoomJoinEvent = {
     inviteeNameList : ['袋袋-句子互动商务', '百年-句子技术支持'],
     inviterName     : '高原ོ',
     roomId          : '23761343687@chatroom',
@@ -92,7 +92,7 @@ test('roomJoinEventMessageParser() ZH-other-invite-bot', async t => {
     voice_len: 1,
   }
 
-  const EXPECTED_EVENT: PuppetRoomJoinEvent = {
+  const EXPECTED_EVENT: RoomJoinEvent = {
     inviteeNameList : [YOU],
     inviterName     : '我爱抓娃娃-抓抓抓抓抓抓抓抓',
     roomId          : '23761343687@chatroom',
@@ -120,7 +120,7 @@ test('roomJoinEventMessageParser() ZH-other-invite-bot-with-other', async t => {
     to_name: '李青青',
     voice_len: 0,
   }
-  const EXPECTED_EVENT: PuppetRoomJoinEvent = {
+  const EXPECTED_EVENT: RoomJoinEvent = {
     inviteeNameList : [YOU],
     inviterName     : '高原ོ',
     roomId          : '23761343687@chatroom',
@@ -148,7 +148,7 @@ test('roomJoinEventMessageParser() ZH-bot-invite-one', async t => {
     to_name: '李青青',
     voice_len: 1,
   }
-  const EXPECTED_EVENT: PuppetRoomJoinEvent = {
+  const EXPECTED_EVENT: RoomJoinEvent = {
     inviteeNameList : ['高原ོ'],
     inviterName     : YOU,
     roomId          : '23761343687@chatroom',
@@ -179,7 +179,7 @@ test('roomJoinEventMessageParser() ZH-bot-invite-three-bot-is-owner', async t =>
     to_name: '李青青',
     voice_len: 0,
   }
-  const EXPECTED_EVENT: PuppetRoomJoinEvent = {
+  const EXPECTED_EVENT: RoomJoinEvent = {
     inviteeNameList : ['高原ོ', '袋袋-句子互动商务', '百年-句子技术支持'],
     inviterName     : YOU,
     roomId          : '23761343687@chatroom',
@@ -207,7 +207,7 @@ test('roomJoinEventMessageParser() ZH-bot-invite-three-bot-is-not-owner', async 
     to_name: '李青青',
     voice_len: 0,
   }
-  const EXPECTED_EVENT: PuppetRoomJoinEvent = {
+  const EXPECTED_EVENT: RoomJoinEvent = {
     inviteeNameList : ['袋袋-句子互动商务', '百年-句子技术支持', '彩虹桥'],
     inviterName     : '高原ོ',
     roomId          : '23761343687@chatroom',
@@ -235,7 +235,7 @@ test('roomJoinEventMessageParser() ZH-scan-qrcode-shared-by-bot-when-bot-not-own
     to_name: '李青青',
     voice_len: 0,
   }
-  const EXPECTED_EVENT: PuppetRoomJoinEvent = {
+  const EXPECTED_EVENT: RoomJoinEvent = {
     inviteeNameList : ['高原ོ'],
     inviterName     : YOU,
     roomId          : '23761343687@chatroom',
@@ -263,7 +263,7 @@ test('roomJoinEventMessageParser() ZH-scan-qrcode-shared-by-other-when-bot-no-ow
     to_name: '李青青',
     voice_len: 0,
   }
-  const EXPECTED_EVENT: PuppetRoomJoinEvent = {
+  const EXPECTED_EVENT: RoomJoinEvent = {
     inviteeNameList : ['奥斯陆'],
     inviterName     : '高原ོ',
     roomId          : '23761343687@chatroom',

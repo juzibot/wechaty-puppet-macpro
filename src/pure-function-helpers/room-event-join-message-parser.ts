@@ -1,11 +1,10 @@
 import {
-  PuppetRoomJoinEvent,
   YOU,
 }                         from 'wechaty-puppet'
 
 import {
   MacproMessagePayload,
-  // MacproMessageType,
+  RoomJoinEvent,
 }                         from '../schemas'
 
 import {
@@ -80,7 +79,7 @@ const ROOM_JOIN_OTHER_INVITE_OTHER_QRCODE_REGEX_LIST_EN = [
 
 export async function roomJoinEventMessageParser (
   rawPayload: MacproMessagePayload,
-): Promise<null | PuppetRoomJoinEvent> {
+): Promise<null | RoomJoinEvent> {
 
   if (!isPayload(rawPayload)) {
     return null
@@ -177,7 +176,7 @@ export async function roomJoinEventMessageParser (
     }
 
     const inviterName: string | YOU = YOU
-    const joinEvent: PuppetRoomJoinEvent = {
+    const joinEvent: RoomJoinEvent = {
       inviteeNameList,
       inviterName,
       roomId,
@@ -205,7 +204,7 @@ export async function roomJoinEventMessageParser (
       inviteeNameList = inviteeNameList.concat(nameList)
     }
 
-    const joinEvent: PuppetRoomJoinEvent = {
+    const joinEvent: RoomJoinEvent = {
       inviteeNameList,
       inviterName,
       roomId,
@@ -234,7 +233,7 @@ export async function roomJoinEventMessageParser (
       throw new Error('neither English nor Chinese')
     }
 
-    const joinEvent: PuppetRoomJoinEvent = {
+    const joinEvent: RoomJoinEvent = {
       inviteeNameList,
       inviterName,
       roomId,
@@ -261,7 +260,7 @@ export async function roomJoinEventMessageParser (
       throw new Error('neither English nor Chinese')
     }
 
-    const joinEvent: PuppetRoomJoinEvent = {
+    const joinEvent: RoomJoinEvent = {
       inviteeNameList,
       inviterName,
       roomId,

@@ -1,10 +1,10 @@
 import {
-  PuppetRoomLeaveEvent,
   YOU,
 }                         from 'wechaty-puppet'
 
 import {
   MacproMessagePayload,
+  RoomLeaveEvent,
 }                         from '../schemas'
 
 import {
@@ -39,7 +39,7 @@ const ROOM_LEAVE_BOT_REGEX_LIST = [
 
 export function roomLeaveEventMessageParser (
   rawPayload: MacproMessagePayload,
-): null | PuppetRoomLeaveEvent {
+): null | RoomLeaveEvent {
 
   if (!isPayload(rawPayload)) {
     return null
@@ -85,7 +85,7 @@ export function roomLeaveEventMessageParser (
     throw new Error('for typescript type checking, will never go here')
   }
 
-  const roomLeaveEvent: PuppetRoomLeaveEvent = {
+  const roomLeaveEvent: RoomLeaveEvent = {
     leaverNameList  : [leaverName],
     removerName,
     roomId,

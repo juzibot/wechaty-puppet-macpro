@@ -6,11 +6,11 @@
 import test  from 'blue-tape'
 
 import {
-  PuppetRoomTopicEvent,
   YOU,
 }                               from 'wechaty-puppet'
 
 import {
+  RoomTopicEvent,
   MacproMessagePayload,
 }                               from '../schemas'
 
@@ -34,7 +34,7 @@ test('roomTopicEventMessageParser() ZH-bot-modify-topic', async t => {
     voice_len: 0,
   }
 
-  const EXPECTED_MESSAGE_PAYLOAD_ROOM_TOPIC: PuppetRoomTopicEvent = {
+  const EXPECTED_MESSAGE_PAYLOAD_ROOM_TOPIC: RoomTopicEvent = {
     changerName : YOU,
     roomId      : '11421066118@chatroom',
     timestamp   : 0,
@@ -63,7 +63,7 @@ test('roomTopicEventMessageParser() ZH-other-modify-topic', async t => {
     voice_len: 0,
   }
 
-  const EXPECTED_MESSAGE_PAYLOAD_ROOM_TOPIC: PuppetRoomTopicEvent = {
+  const EXPECTED_MESSAGE_PAYLOAD_ROOM_TOPIC: RoomTopicEvent = {
     changerName : '高原ོ',
     roomId      : '11421066118@chatroom',
     timestamp   : 0,
