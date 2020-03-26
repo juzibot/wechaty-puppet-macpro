@@ -296,7 +296,7 @@ export class PuppetMacpro extends Puppet {
       const url = await fileBox.toQRCode()
       const eventScanPayload: EventScanPayload = {
         qrcode: url,
-        status: ScanStatus.Cancel,
+        status: ScanStatus.Waiting,
       }
       this.emit('scan', eventScanPayload)
     }
