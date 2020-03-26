@@ -1,10 +1,10 @@
 import {
-  PuppetRoomTopicEvent,
   YOU,
 }                         from 'wechaty-puppet'
 
 import {
   MacproMessagePayload,
+  RoomTopicEvent,
 }                         from '../schemas'
 
 import {
@@ -29,7 +29,7 @@ const ROOM_TOPIC_YOU_REGEX_LIST = [
 
 export function roomTopicEventMessageParser (
   rawPayload: MacproMessagePayload,
-): null | PuppetRoomTopicEvent {
+): null | RoomTopicEvent {
 
   if (!isPayload(rawPayload)) {
     return null
@@ -61,7 +61,7 @@ export function roomTopicEventMessageParser (
     changerName = YOU
   }
 
-  const roomTopicEvent: PuppetRoomTopicEvent = {
+  const roomTopicEvent: RoomTopicEvent = {
     changerName,
     roomId,
     timestamp,

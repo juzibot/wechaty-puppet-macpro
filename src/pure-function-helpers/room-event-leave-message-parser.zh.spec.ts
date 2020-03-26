@@ -6,11 +6,11 @@
 import test  from 'blue-tape'
 
 import {
-  PuppetRoomLeaveEvent,
   YOU,
 }                               from 'wechaty-puppet'
 
 import {
+  RoomLeaveEvent,
   MacproMessagePayload,
 }                                 from '../schemas'
 
@@ -34,7 +34,7 @@ test('roomLeaveEventMessageParser() ZH-bot-delete-other', async t => {
     voice_len: 0,
   }
 
-  const EXPECTED_EVENT: PuppetRoomLeaveEvent = {
+  const EXPECTED_EVENT: RoomLeaveEvent = {
     leaverNameList : ['百年-句子技术支持'],
     removerName    : YOU,
     roomId         : '23761343687@chatroom',
@@ -67,7 +67,7 @@ test('roomLeaveEventMessageParser() ZH-other-delete-bot', async t => {
     to_name: '李青青',
     voice_len: 0,
   }
-  const EXPECTED_EVENT: PuppetRoomLeaveEvent = {
+  const EXPECTED_EVENT: RoomLeaveEvent = {
     leaverNameList : [YOU],
     removerName    : '高原ོ',
     roomId         : '23761343687@chatroom',

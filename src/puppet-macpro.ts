@@ -25,6 +25,17 @@ import {
   MiniProgramPayload,
   ScanStatus,
   ImageType,
+
+  EventDongPayload,
+  EventFriendshipPayload,
+  EventLogoutPayload,
+  EventMessagePayload,
+  EventResetPayload,
+  EventRoomJoinPayload,
+  EventRoomLeavePayload,
+  EventRoomTopicPayload,
+  EventRoomInvitePayload,
+  EventScanPayload,
 }                           from 'wechaty-puppet'
 
 import {
@@ -275,12 +286,19 @@ export class PuppetMacpro extends Puppet {
   public async onScan (dataStr: string) {
     const data = JSON.parse(dataStr)
     if (data && data.status) {
-      this.emit('scan', '', data.status)
+      const eventScanPayload: EventScanPayload = {
+        qrcode: '',
+        status: data.status,
+      }
+      this.emit('scan', eventScanPayload)
     } else {
-
       const fileBox = FileBox.fromUrl(data.url)
       const url = await fileBox.toQRCode()
-      this.emit('scan', url, ScanStatus.Cancel)
+      const eventScanPayload: EventScanPayload = {
+        qrcode: url,
+        status: ScanStatus.Cancel,
+      }
+      this.emit('scan', eventScanPayload)
     }
   }
 
@@ -336,8 +354,15 @@ export class PuppetMacpro extends Puppet {
             Logout Success
     ==============================
     `)
-    this.emit('logout', this.selfId())
-    this.emit('reset', 'reset when received logout event.')
+    const eventLogoutPayload: EventLogoutPayload = {
+      contactId: this.selfId(),
+      data: '',
+    }
+    this.emit('logout', eventLogoutPayload)
+    const eventResetPayload: EventResetPayload = {
+      data: 'reset when received logout event.',
+    }
+    this.emit('reset', eventResetPayload)
   }
 
   public async onNotLogin (dataStr: string) {
@@ -382,12 +407,14 @@ export class PuppetMacpro extends Puppet {
     }
 
     this.cacheMacproMessagePayload.set(messageId, payload)
-
+    const eventMessagePayload: EventMessagePayload = {
+      messageId: messageId,
+    }
     switch (payload.content_type) {
 
       case MacproMessageType.Text:
         await this.onMacproMessageFriendshipEvent(payload)
-        this.emit('message', messageId)
+        this.emit('message', eventMessagePayload)
         break
       case MacproMessageType.UrlLink:
         await this.onMacproMessageRoomInvitation(payload)
@@ -400,12 +427,12 @@ export class PuppetMacpro extends Puppet {
       case MacproMessageType.PrivateCard:
       case MacproMessageType.MiniProgram:
       case MacproMessageType.Gif:
-        this.emit('message', messageId)
+        this.emit('message', eventMessagePayload)
         break
       case MacproMessageType.Location:
       case MacproMessageType.RedPacket:
       case MacproMessageType.MoneyTransaction:
-        this.emit('message', messageId)
+        this.emit('message', eventMessagePayload)
         break
       case MacproMessageType.System:
         await Promise.all([
@@ -414,10 +441,10 @@ export class PuppetMacpro extends Puppet {
           this.onMacproMessageRoomEventLeave(payload),
           this.onMacproMessageRoomEventTopic(payload),
         ])
-        this.emit('message', messageId)
+        this.emit('message', eventMessagePayload)
         break
       default:
-        this.emit('message', messageId)
+        this.emit('message', eventMessagePayload)
         break
     }
 
@@ -676,7 +703,10 @@ export class PuppetMacpro extends Puppet {
     const payload = friendshipReceiveEventMessageParser(friendshipRawPayload)
     if (payload) {
       await this.cacheManager.setFriendshipRawPayload(payload.contactId, payload)
-      this.emit('friendship', payload.contactId)
+      const eventFriendshipPayload: EventFriendshipPayload = {
+        friendshipId: payload.contactId,
+      }
+      this.emit('friendship', eventFriendshipPayload)
     }
   }
 
@@ -1096,7 +1126,10 @@ export class PuppetMacpro extends Puppet {
       const payload = confirmPayload || verifyPayload
       if (this.cacheManager) {
         await this.cacheManager.setFriendshipRawPayload(rawPayload.messageId, payload!)
-        this.emit('friendship', rawPayload.messageId)
+        const eventFriendshipPayload: EventFriendshipPayload = {
+          friendshipId: rawPayload.messageId,
+        }
+        this.emit('friendship', eventFriendshipPayload)
         return true
       }
     }
@@ -1158,7 +1191,13 @@ export class PuppetMacpro extends Puppet {
       await this.roomMemberPayloadDirty(roomId)
       await this.roomPayloadDirty(roomId)
 
-      this.emit('room-join', roomId, inviteeIdList,  inviterId, timestamp)
+      const eventRoomJoinPayload: EventRoomJoinPayload = {
+        inviteeIdList,
+        inviterId,
+        roomId,
+        timestamp,
+      }
+      this.emit('room-join', eventRoomJoinPayload)
       return true
     }
     return false
@@ -1197,7 +1236,13 @@ export class PuppetMacpro extends Puppet {
       await this.roomMemberPayloadDirty(roomId)
       await this.roomPayloadDirty(roomId)
 
-      this.emit('room-leave', roomId, leaverIdList, removerId, timestamp)
+      const eventRoomLeavePayload: EventRoomLeavePayload = {
+        removeeIdList: leaverIdList,
+        removerId,
+        roomId,
+        timestamp,
+      }
+      this.emit('room-leave', eventRoomLeavePayload)
       return true
     }
     return false
@@ -1237,7 +1282,14 @@ export class PuppetMacpro extends Puppet {
         }
       }
 
-      this.emit('room-topic', roomId, newTopic, oldTopic, changerId, timestamp)
+      const eventRoomTopicPayload: EventRoomTopicPayload = {
+        changerId,
+        newTopic,
+        oldTopic,
+        roomId,
+        timestamp,
+      }
+      this.emit('room-topic', eventRoomTopicPayload)
       return true
     }
     return false
@@ -1252,9 +1304,15 @@ export class PuppetMacpro extends Puppet {
         throw CacheManageError('contactAvatar()')
       }
       await this.cacheManager.setRoomInvitation(roomInviteEvent.id, roomInviteEvent)
-      this.emit('room-invite', roomInviteEvent.id)
+      const eventRoomInvitePayload: EventRoomInvitePayload = {
+        roomInvitationId: roomInviteEvent.id,
+      }
+      this.emit('room-invite', eventRoomInvitePayload)
     } else {
-      this.emit('message', payload.messageId)
+      const eventMessagePayload: EventMessagePayload = {
+        messageId: payload.messageId,
+      }
+      this.emit('message', eventMessagePayload)
     }
   }
 
@@ -1743,17 +1801,19 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async roomInvitationRawPayloadParser (rawPayload: MacproRoomInvitationPayload): Promise<RoomInvitationPayload> {
-    log.verbose(PRE, `roomInvitationRawPayloadDirty(${rawPayload})`)
-    return {
-      avatar: '',
+    log.silly(PRE, `roomInvitationRawPayloadParser()`)
+    const payload: RoomInvitationPayload = {
+      avatar: rawPayload.thumbUrl,
       id: rawPayload.id,
-      invitation: '',
+      invitation: rawPayload.url,
       inviterId: rawPayload.fromUser,
       memberCount: 0,
       memberIdList: [],
+      receiverId: rawPayload.receiver,
       timestamp: rawPayload.timestamp,
       topic: rawPayload.roomName,
     }
+    return payload
   }
 
   /**
@@ -1829,7 +1889,10 @@ export class PuppetMacpro extends Puppet {
 
   public ding (data?: string): void {
     log.silly(PRE, 'ding(%s)', data || '')
-    this.emit('dong', data)
+    const eventDongPayload: EventDongPayload = {
+      data: data ? data! : 'ding-dong',
+    }
+    this.emit('dong', eventDongPayload)
   }
 
   public unref (): void {

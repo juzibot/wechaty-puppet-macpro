@@ -86,6 +86,8 @@ export const roomInviteEventMessageParser = async (
 
   return {
     fromUser: my_account,
+    thumbUrl: jsonPayload.thumburl,
+    receiver: rawPayload.to_account_alias || rawPayload.to_account,
     id: messageId,
     roomName: matchInviteEvent![2],
     timestamp,
