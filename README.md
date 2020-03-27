@@ -84,7 +84,6 @@ or
 BROLOG_LEVEL=silly node index.js
 ```
 
-
 ## Example
 
 ```js
