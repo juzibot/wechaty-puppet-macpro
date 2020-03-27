@@ -237,8 +237,8 @@ export class GrpcGateway extends EventEmitter {
         channel.getConnectivityState(true)
         const beforeState = channel.getConnectivityState(false)
 
-        var deadline = new Date();
-        deadline.setSeconds(deadline.getSeconds() + 5);
+        var deadline = new Date()
+        deadline.setSeconds(deadline.getSeconds() + 5)
         channel.watchConnectivityState(beforeState, deadline, (err) => {
           if (err) {
             reject(new Error('Try to connect to server timeout.'))
