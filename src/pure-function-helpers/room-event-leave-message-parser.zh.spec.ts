@@ -20,6 +20,11 @@ test('roomLeaveEventMessageParser() ZH-bot-delete-other', async t => {
   const MESSAGE_PAYLOAD: MacproMessagePayload = {
     content: '你将"百年-句子技术支持"移出了群聊',
     content_type: 10,
+    dContent: '',
+    dFromUser: '',
+    dMsgId: 1,
+    dPlaceholder: '',
+    dToUser: '',
     file_name: '',
     g_name: 'Bots',
     g_number: '23761343687@chatroom',
@@ -54,6 +59,11 @@ test('roomLeaveEventMessageParser() ZH-other-delete-bot', async t => {
   const MESSAGE_PAYLOAD: MacproMessagePayload = {
     content: '你被"高原ོ"移出群聊',
     content_type: 10,
+    dContent: '',
+    dFromUser: '',
+    dMsgId: 1,
+    dPlaceholder: '',
+    dToUser: '',
     file_name: '',
     g_name: 'Bots',
     g_number: '23761343687@chatroom',

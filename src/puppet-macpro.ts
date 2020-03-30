@@ -67,6 +67,8 @@ import {
   GrpcFriendshipAcceptedData,
   GrpcFriendshipAcceptedDetail,
   AcceptedType,
+  DownloadFileRequestData,
+  DownloadFileResponseData,
 } from './schemas'
 
 import { RequestClient } from './utils/request'
@@ -265,6 +267,13 @@ export class PuppetMacpro extends Puppet {
     this.grpcGateway.on('room-qrcode', (data: string) => {
       const _data: GrpcRoomQrcode = JSON.parse(data)
       this.room.resolveRoomQrcodeCallback(_data.group_number, _data.qrcode)
+    })
+
+    this.grpcGateway.on('download-file', (data: string) => {
+      const _data: DownloadFileResponseData = JSON.parse(data)
+      const callback = this.getCallback(_data.msgId.toString())
+      callback(_data)
+      this.removeCallback(_data.msgId.toString())
     })
 
     /**
@@ -855,8 +864,8 @@ export class PuppetMacpro extends Puppet {
    * Contact
    *
    */
-  private poolMap: { [requestId: string]: (data: MacproContactPayload) => void } = {}
-  private pushCallbackToPool (requestId: string, callback: (data: MacproContactPayload) => void) {
+  private poolMap: { [requestId: string]: (data: any) => void } = {}
+  private pushCallbackToPool (requestId: string, callback: (data: any) => void) {
     this.poolMap[requestId] = callback
   }
   private getCallback (requestId: string) {
@@ -1432,9 +1441,32 @@ export class PuppetMacpro extends Puppet {
       MacproMessageType.Gif,
     ]
     if (supportedMessageTypeToFileBox.includes(messageType)) {
-      let fileBox = FileBox.fromUrl(messagePayload.content)
-      if (messageType === MacproMessageType.Voice) {
-        if (messagePayload.content.indexOf('.silk') !== -1) {
+      const downloadFileRequestData: DownloadFileRequestData = {
+        content_type: messagePayload.content_type,
+        dContent: messagePayload.dContent,
+        dFromUser: messagePayload.dFromUser,
+        dMsgId: messagePayload.dMsgId,
+        dToUser: messagePayload.dToUser,
+        message_type: messagePayload.g_number ? 2 : 1,
+        msgid: parseInt(messagePayload.messageId, 10),
+        my_account: messagePayload.my_account,
+      }
+      await this.user.downloadFile(downloadFileRequestData)
+      let fileBox: FileBox
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('download file timeout')), 5000)
+        this.pushCallbackToPool(messagePayload.messageId, (data: DownloadFileResponseData) => {
+          log.silly(PRE, `get download file url: ${data.content}`)
+          clearTimeout(timeout)
+          fileBox = FileBox.fromUrl(data.content)
+          if (messageType === MacproMessageType.File) {
+            fileBox.metadata = {
+              fileName: messagePayload.file_name ? messagePayload.file_name : '未命名',
+            }
+          }
+          resolve(fileBox)
+        })
+        if (messageType === MacproMessageType.Voice && messagePayload.content.indexOf('.silk') !== -1) {
           const url = messagePayload.content
           fileBox = FileBox.fromUrl(url)
           fileBox.metadata = {
@@ -1443,12 +1475,8 @@ export class PuppetMacpro extends Puppet {
         } else {
           throw new Error(`can not get the silk url for this voice.`)
         }
-      } else if (messageType === MacproMessageType.File) {
-        fileBox.metadata = {
-          fileName: messagePayload.file_name ? messagePayload.file_name : '未命名',
-        }
-      }
-      return fileBox
+        resolve(fileBox)
+      })
     } else {
       throw new Error(`Can not get filebox for message type: ${MacproMessageType[messageType]}`)
     }

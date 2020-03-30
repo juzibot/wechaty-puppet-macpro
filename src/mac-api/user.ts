@@ -126,4 +126,20 @@ export default class MacproUser {
     }
   }
 
+  // 下载图片、视频、文件等资源
+  public async downloadFile (data: any) {
+    log.silly(PRE, `downloadFile()`)
+
+    const res = await this.requestClient.request({
+      apiName: 'downloadFile',
+      data,
+    })
+    log.silly(PRE, `res : ${JSON.stringify(res)}`)
+    if (res.code === RequestStatus.Success) {
+      return RequestStatus.Success
+    } else {
+      return RequestStatus.Fail
+    }
+  }
+
 }

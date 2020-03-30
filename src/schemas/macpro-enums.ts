@@ -131,6 +131,7 @@ export enum CallbackType {
   ScanStatus    = 4,
   RoomList      = 7,
   ContactRemark = 10,
+  DownloadFile  = 12,
   ContactOrRoom = 182,
 }
 
