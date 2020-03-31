@@ -24,7 +24,7 @@ export const macproToken = () => {
 /**
  * GRPC server
  */
-export const GRPC_ENDPOINT = 'macpro.juzibot.com:3333' // '52.82.124.54:3333'
+export const GRPC_ENDPOINT = 'macpro.juzibot.com:3334' // '52.82.124.54:3333'
 
 export const MESSAGE_CACHE_AGE = 1000 * 60 * 60
 export const MESSAGE_CACHE_MAX = 1000

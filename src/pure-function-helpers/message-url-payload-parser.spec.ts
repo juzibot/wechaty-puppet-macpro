@@ -9,7 +9,7 @@ test('messageRawPayloadParser', async t => {
       content_type: 8,
       dContent: '',
       dFromUser: '',
-      dMsgId: 1,
+      dMsgId: '1',
       dPlaceholder: '',
       dToUser: '',
       file_name: '',

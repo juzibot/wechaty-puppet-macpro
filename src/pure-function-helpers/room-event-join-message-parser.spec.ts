@@ -52,7 +52,7 @@ test('roomJoinEventMessageParser() Recall Message', async t => {
     content_type: 10,
     dContent: '',
     dFromUser: '',
-    dMsgId: 1,
+    dMsgId: '1',
     dPlaceholder: '',
     dToUser: '',
     file_name: '',

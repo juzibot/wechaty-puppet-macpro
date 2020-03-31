@@ -69,6 +69,7 @@ import {
   AcceptedType,
   DownloadFileRequestData,
   DownloadFileResponseData,
+  ChatType,
 } from './schemas'
 
 import { RequestClient } from './utils/request'
@@ -95,6 +96,8 @@ import { roomLeaveEventMessageParser } from './pure-function-helpers/room-event-
 import { roomTopicEventMessageParser } from './pure-function-helpers/room-event-topic-message-parser'
 import { messageUrlPayloadParser } from './pure-function-helpers/message-url-payload-parser'
 import { roomInviteEventMessageParser } from './pure-function-helpers/room-event-invite-message-parser'
+import { RequestQueue } from './utils/request-queue'
+import CallbackPool from './utils/callback-pool'
 
 const PRE = 'PuppetMacpro'
 const MEMORY_SLOT_NAME = 'WECHATY_PUPPET_MACPRO'
@@ -271,9 +274,9 @@ export class PuppetMacpro extends Puppet {
 
     this.grpcGateway.on('download-file', (data: string) => {
       const _data: DownloadFileResponseData = JSON.parse(data)
-      const callback = this.getCallback(_data.msgId.toString())
+      const callback = CallbackPool.getCallback(_data.msgId)
       callback(_data)
-      this.removeCallback(_data.msgId.toString())
+      CallbackPool.removeCallback(_data.msgId)
     })
 
     /**
@@ -406,7 +409,7 @@ export class PuppetMacpro extends Puppet {
       return
     }
 
-    const messageId = messagePayload.msgid.toString()
+    const messageId = messagePayload.msgid
 
     const payload: MacproMessagePayload = {
       ...messagePayload,
@@ -532,7 +535,7 @@ export class PuppetMacpro extends Puppet {
     const contactInfo: GrpcContactInfo = JSON.parse(data)
     log.verbose(PRE, `syncContactInfo(), contact id : ${contactInfo.username}`)
     if (this.cacheManager) {
-      const callback = this.getCallback(contactInfo.username)
+      const callback = CallbackPool.getCallback(contactInfo.username)
       const contact: MacproContactPayload = {
         account: contactInfo.alias || '',
         accountAlias: contactInfo.username || contactInfo.alias, // wxid
@@ -548,7 +551,7 @@ export class PuppetMacpro extends Puppet {
       }
       await this.cacheManager.setContact(contact.accountAlias, contact)
       callback(contact)
-      this.removeCallback(contactInfo.username)
+      CallbackPool.removeCallback(contactInfo.username)
     }
   }
 
@@ -864,17 +867,6 @@ export class PuppetMacpro extends Puppet {
    * Contact
    *
    */
-  private poolMap: { [requestId: string]: (data: any) => void } = {}
-  private pushCallbackToPool (requestId: string, callback: (data: any) => void) {
-    this.poolMap[requestId] = callback
-  }
-  private getCallback (requestId: string) {
-    return this.poolMap[requestId]
-  }
-  private removeCallback (requestId: string) {
-    delete this.poolMap[requestId]
-  }
-
   public async contactRawPayload (id: string): Promise<MacproContactPayload> {
     log.verbose(PRE, 'contactRawPayload(%s)', id)
     if (!this.cacheManager) {
@@ -889,7 +881,7 @@ export class PuppetMacpro extends Puppet {
       })
 
       return new Promise(resolve => {
-        this.pushCallbackToPool(id, (data: MacproContactPayload) => {
+        CallbackPool.pushCallbackToPool(id, (data: MacproContactPayload) => {
           resolve(data)
         })
       })
@@ -1419,8 +1411,33 @@ export class PuppetMacpro extends Puppet {
   }
 
   public async messageImage (messageId: string, imageType: ImageType): Promise<FileBox> {
-    log.warn(`messageImage() need to be implemented, ${messageId}, ${imageType}`)
-    throw new Error(`messageImage() not support`)
+    log.silly(PRE, `messageImage(${messageId}, ${imageType})`)
+    const rawPayload = await this.messageRawPayload(messageId)
+
+    if (!rawPayload || !rawPayload.content) {
+      throw new Error(`can not find message raw payload by id : ${messageId}`)
+    }
+
+    switch (imageType) {
+      case ImageType.Thumbnail:
+        return FileBox.fromUrl(rawPayload.content)
+      case ImageType.HD:
+        throw new Error(`HD not support!`)
+      case ImageType.Artwork:
+        const downloadFileRequestData: DownloadFileRequestData = {
+          content_type: rawPayload.content_type,
+          dContent: rawPayload.dContent,
+          dFromUser: rawPayload.dFromUser,
+          dMsgId: rawPayload.dMsgId,
+          dToUser: rawPayload.dToUser,
+          message_type: rawPayload.g_number ? 2 : 1,
+          msgid: rawPayload.messageId,
+          my_account: rawPayload.my_account,
+        }
+        return RequestQueue.exec(() => this.user.downloadFile(downloadFileRequestData))
+      default:
+        throw new Error(`this type : ${imageType} is wrong.`)
+    }
   }
 
   public async messageFile (id: string): Promise<FileBox> {
@@ -1435,9 +1452,7 @@ export class PuppetMacpro extends Puppet {
     const messageType = messagePayload.content_type
     const supportedMessageTypeToFileBox = [
       MacproMessageType.File,
-      MacproMessageType.Image,
       MacproMessageType.Video,
-      MacproMessageType.Voice,
       MacproMessageType.Gif,
     ]
     if (supportedMessageTypeToFileBox.includes(messageType)) {
@@ -1447,36 +1462,27 @@ export class PuppetMacpro extends Puppet {
         dFromUser: messagePayload.dFromUser,
         dMsgId: messagePayload.dMsgId,
         dToUser: messagePayload.dToUser,
-        message_type: messagePayload.g_number ? 2 : 1,
-        msgid: parseInt(messagePayload.messageId, 10),
+        message_type: messagePayload.g_number ? ChatType.Room : ChatType.Contact,
+        msgid: messagePayload.messageId,
         my_account: messagePayload.my_account,
       }
-      await this.user.downloadFile(downloadFileRequestData)
-      let fileBox: FileBox
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('download file timeout')), 5000)
-        this.pushCallbackToPool(messagePayload.messageId, (data: DownloadFileResponseData) => {
-          log.silly(PRE, `get download file url: ${data.content}`)
-          clearTimeout(timeout)
-          fileBox = FileBox.fromUrl(data.content)
-          if (messageType === MacproMessageType.File) {
-            fileBox.metadata = {
-              fileName: messagePayload.file_name ? messagePayload.file_name : '未命名',
-            }
-          }
-          resolve(fileBox)
-        })
-        if (messageType === MacproMessageType.Voice && messagePayload.content.indexOf('.silk') !== -1) {
-          const url = messagePayload.content
-          fileBox = FileBox.fromUrl(url)
-          fileBox.metadata = {
-            voiceLength: messagePayload.voice_len,
-          }
-        } else {
-          throw new Error(`can not get the silk url for this voice.`)
+
+      let fileBox: FileBox = await RequestQueue.exec(() => this.user.downloadFile(downloadFileRequestData))
+      if (messageType === MacproMessageType.File) {
+        fileBox.metadata = {
+          fileName: messagePayload.file_name ? messagePayload.file_name : '未命名',
         }
-        resolve(fileBox)
-      })
+      }
+      return fileBox
+    } else if (messageType === MacproMessageType.Image) {
+      return FileBox.fromUrl(messagePayload.content)
+    } else if (messageType === MacproMessageType.Voice && messagePayload.content.indexOf('.silk') !== -1) {
+      const url = messagePayload.content
+      const fileBox = FileBox.fromUrl(url)
+      fileBox.metadata = {
+        voiceLength: messagePayload.voice_len,
+      }
+      return fileBox
     } else {
       throw new Error(`Can not get filebox for message type: ${MacproMessageType[messageType]}`)
     }

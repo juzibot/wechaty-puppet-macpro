@@ -1,6 +1,8 @@
 import { RequestClient } from '../utils/request'
-import { RequestStatus } from '../schemas'
+import { RequestStatus, DownloadFileResponseData } from '../schemas'
 import { log } from '../config'
+import { FileBox } from 'wechaty-puppet'
+import CallbackPool from '../utils/callback-pool'
 
 const PRE = 'MAC_API_USER'
 
@@ -130,16 +132,20 @@ export default class MacproUser {
   public async downloadFile (data: any) {
     log.silly(PRE, `downloadFile()`)
 
-    const res = await this.requestClient.request({
+    await this.requestClient.request({
       apiName: 'downloadFile',
       data,
     })
-    log.silly(PRE, `res : ${JSON.stringify(res)}`)
-    if (res.code === RequestStatus.Success) {
-      return RequestStatus.Success
-    } else {
-      return RequestStatus.Fail
-    }
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('download file timeout')), 3 * 60 * 1000)
+      CallbackPool.pushCallbackToPool(data.msgid, (data: DownloadFileResponseData) => {
+        log.silly(PRE, `get download file url: ${data.content}`)
+        clearTimeout(timeout)
+        const fileBox = FileBox.fromUrl(data.content)
+        resolve(fileBox)
+      })
+    })
   }
 
 }
