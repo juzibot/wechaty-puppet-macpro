@@ -1,6 +1,8 @@
 import { RequestClient } from '../utils/request'
-import { RequestStatus } from '../schemas'
+import { RequestStatus, DownloadFileResponseData } from '../schemas'
 import { log } from '../config'
+import { FileBox } from 'wechaty-puppet'
+import CallbackPool from '../utils/callback-pool'
 
 const PRE = 'MAC_API_USER'
 
@@ -124,6 +126,26 @@ export default class MacproUser {
     } else {
       return RequestStatus.Fail
     }
+  }
+
+  // 下载图片、视频、文件等资源
+  public async downloadFile (data: any) {
+    log.silly(PRE, `downloadFile()`)
+
+    await this.requestClient.request({
+      apiName: 'downloadFile',
+      data,
+    })
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('download file timeout')), 3 * 60 * 1000)
+      CallbackPool.pushCallbackToPool(data.msgid, (data: DownloadFileResponseData) => {
+        log.silly(PRE, `get download file url: ${data.content}`)
+        clearTimeout(timeout)
+        const fileBox = FileBox.fromUrl(data.content)
+        resolve(fileBox)
+      })
+    })
   }
 
 }

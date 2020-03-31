@@ -50,6 +50,11 @@ test('roomJoinEventMessageParser() Recall Message', async t => {
   const MESSAGE_PAYLOAD: MacproMessagePayload = {
     content: '你已成为新群主',
     content_type: 10,
+    dContent: '',
+    dFromUser: '',
+    dMsgId: '1',
+    dPlaceholder: '',
+    dToUser: '',
     file_name: '',
     g_name: 'Bots',
     g_number: '23761343687@chatroom',

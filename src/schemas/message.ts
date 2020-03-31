@@ -10,9 +10,14 @@ export interface GrpcMessagePayload {
   to_name: string,
   content: string,
   voice_len?: number,
-  msgid: number,
+  msgid: string,
   content_type?: MacproMessageType,
   send_time: number,
+  dContent: string,
+  dMsgId: string,
+  dPlaceholder: string,
+  dFromUser: string,
+  dToUser: string,
 }
 
 export interface GrpcPrivateMessagePayload extends GrpcMessagePayload {
@@ -52,6 +57,11 @@ export interface MacproMessagePayload {
   to_name: string,
   type?: MessageSendType,
   voice_len?: number | string,
+  dContent: string,
+  dMsgId: string,
+  dPlaceholder: string,
+  dFromUser: string,
+  dToUser: string,
 }
 
 export interface MiniProgram  {

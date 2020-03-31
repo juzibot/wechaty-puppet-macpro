@@ -19,7 +19,7 @@ import { ScanStatus } from 'wechaty-puppet'
 
 const PRE = 'GrpcGateway'
 
-export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-list' | 'room-member' | 'room-create' | 'room-join' | 'room-qrcode' | 'reconnect' | 'invalid-token' | 'add-friend' | 'del-friend' | 'add-friend-before-accept' | 'heartbeat' | 'contact-info' | 'room-info' | 'contact-remark'
+export type GrpcGatewayEvent = 'contact-list' | 'new-friend' | 'scan' | 'login' | 'message' | 'logout' | 'not-login' | 'room-list' | 'room-member' | 'room-create' | 'room-join' | 'room-qrcode' | 'reconnect' | 'invalid-token' | 'add-friend' | 'del-friend' | 'add-friend-before-accept' | 'heartbeat' | 'contact-info' | 'room-info' | 'contact-remark' | 'download-file'
 
 export class GrpcGateway extends EventEmitter {
 
@@ -169,6 +169,7 @@ export class GrpcGateway extends EventEmitter {
   public emit (event: 'room-create', data: string): boolean
   public emit (event: 'room-join', data: string): boolean
   public emit (event: 'room-qrcode', data: string): boolean
+  public emit (event: 'download-file', data: string): boolean
   public emit (event: 'scan', data: string): boolean
   public emit (event: 'login', data: string): boolean
   public emit (event: 'message', data: string): boolean
@@ -198,6 +199,7 @@ export class GrpcGateway extends EventEmitter {
   public on (event: 'room-create', listener: ((data: string) => any)): this
   public on (event: 'room-join', listener: ((data: string) => any)): this
   public on (event: 'room-qrcode', listener: ((data: string) => any)): this
+  public on (event: 'download-file', listener: ((data: string) => any)): this
   public on (event: 'scan', listener: ((data: string, status: ScanStatus) => any)): this
   public on (event: 'login', listener: ((data: string) => any)): this
   public on (event: 'message', listener: ((data: string) => any)): this
@@ -304,6 +306,9 @@ export class GrpcGateway extends EventEmitter {
               break
             case CallbackType.ContactRemark:
               this.emit('contact-remark', data.getData())
+              break
+            case CallbackType.DownloadFile:
+              this.emit('download-file', data.getData())
               break
             case CallbackType.ContactOrRoom:
               const contactOrRoomStr = data.getData()

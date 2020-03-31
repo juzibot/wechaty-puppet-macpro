@@ -20,6 +20,11 @@ test('roomTopicEventMessageParser() ZH-bot-modify-topic', async t => {
   const PADCHAT_MESSAGE_PAYLOAD_ROOM_TOPIC: MacproMessagePayload = {
     content: '你修改群名为“botsssss”',
     content_type: 10,
+    dContent: '',
+    dFromUser: '',
+    dMsgId: '1',
+    dPlaceholder: '',
+    dToUser: '',
     file_name: '',
     g_name: 'BigBots',
     g_number: '11421066118@chatroom',
@@ -49,6 +54,11 @@ test('roomTopicEventMessageParser() ZH-other-modify-topic', async t => {
   const MESSAGE_PAYLOAD: MacproMessagePayload = {
     content: '"高原ོ"修改群名为“BOTs”',
     content_type: 10,
+    dContent: '',
+    dFromUser: '',
+    dMsgId: '1',
+    dPlaceholder: '',
+    dToUser: '',
     file_name: '',
     g_name: 'botsssss',
     g_number: '11421066118@chatroom',
