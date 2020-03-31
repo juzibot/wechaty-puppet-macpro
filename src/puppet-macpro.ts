@@ -1430,7 +1430,7 @@ export class PuppetMacpro extends Puppet {
           dFromUser: rawPayload.dFromUser,
           dMsgId: rawPayload.dMsgId,
           dToUser: rawPayload.dToUser,
-          message_type: rawPayload.g_number ? 2 : 1,
+          message_type: rawPayload.g_number ? ChatType.Room : ChatType.Contact,
           msgid: rawPayload.messageId,
           my_account: rawPayload.my_account,
         }
