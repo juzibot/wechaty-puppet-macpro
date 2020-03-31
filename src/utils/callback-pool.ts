@@ -1,4 +1,5 @@
 export default class CallbackPool {
+
   public static poolMap: { [requestId: string]: (data: any) => void } = {}
 
   public static pushCallbackToPool (requestId: string, callback: (data: any) => void) {
@@ -12,4 +13,5 @@ export default class CallbackPool {
   public static removeCallback (requestId: string) {
     delete this.poolMap[requestId]
   }
+
 }
