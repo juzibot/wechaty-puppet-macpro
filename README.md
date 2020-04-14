@@ -13,7 +13,7 @@
 #### 1.1. Check your `Node` version first
 
 ```js
-node --version // v10.16.0 (BTW v10.0.0 < version < v11.0.0 is better)
+node --version // v10.16.0
 ```
 
 > for windows system
@@ -87,9 +87,10 @@ BROLOG_LEVEL=silly node index.js
 ## Example
 
 ```js
-import { Wechaty      } from 'wechaty'
+import { Wechaty } from 'wechaty'
 import { PuppetMacpro } from 'wechaty-puppet-macpro'
-import { generate     } from 'qrcode-terminal'
+import { ScanStatus } from 'wechaty-puppet'
+import { generate } from 'qrcode-terminal'
 
 const token = 'your token'
 const name  = 'your-bot-name'
@@ -100,20 +101,22 @@ const puppet = new PuppetMacpro({
 
 const bot = new Wechaty({
   puppet,
-  name, // login without scan qrcode at next time, it will generate xxxx.memory-card.json and save login data.
+  name, // unique for each WeChat account, will generate ${name}.memory-card.json file in current root dirctory
 })
 
 bot
-  .on('scan', (qrcode) => {
-    generate(qrcode, {
-      small: true
-    })
+  .on('scan', (qrcode, status) => {
+    if (status === ScanStatus.Waiting) {
+      generate(qrcode, {
+        small: true
+      })
+    }
   })
   .on('login', (user) => {
-    console.log(`login user : ${user}`)
+    console.log(`login user : ${JSON.stringify(user)}`)
   })
   .on('message', msg => {
-    console.log(`msg : ${msg}`)
+    console.log(`msg : ${JSON.stringify(msg)}`)
   })
   .start()
 ```
