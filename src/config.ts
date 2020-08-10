@@ -30,11 +30,11 @@ export const MESSAGE_CACHE_AGE = 1000 * 60 * 60
 export const MESSAGE_CACHE_MAX = 1000
 
 export const AWS_S3 = {
-  ACCESS_KEY_ID: 'AKIA3PQY2OQG5FEXWMH6',
+  ACCESS_KEY_ID: 'xxxx',
   BUCKET: 'macpro-message-file',
   EXPIRE_TIME: 3600 * 24 * 3,
   PATH: 'image-message/',
-  SECRET_ACCESS_KEY: 'jw7Deo+W8l4FTOL2BXd/VubTJjt1mhm55sRhnsEn',
+  SECRET_ACCESS_KEY: 'xxxx',
 }
 
 export function qrCodeForChatie (): FileBox {
