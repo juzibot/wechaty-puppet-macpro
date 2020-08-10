@@ -227,7 +227,7 @@ export class PuppetMacpro extends Puppet {
 
   private async startGrpcListener () {
     this.grpcGateway.on('heartbeat', async () => {
-      this.emit('watchdog', {
+      this.emit('heartbeat', {
         data: 'heartbeat',
       })
     })
